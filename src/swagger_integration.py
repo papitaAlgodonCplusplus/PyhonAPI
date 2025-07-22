@@ -445,25 +445,6 @@ class SwaggerAPIClient:
 
         return analysis
 
-    def validate_api_response(self, response_data: Dict[str, Any], endpoint: str) -> bool:
-        """
-        Validate API response structure and content
-        """
-        if not isinstance(response_data, dict):
-            print(f"❌ Invalid response format from {endpoint}: not a dictionary")
-            return False
-            
-        if not response_data.get('success', False):
-            error_msg = response_data.get('message', 'Unknown error')
-            print(f"❌ API error from {endpoint}: {error_msg}")
-            return False
-            
-        if 'result' not in response_data:
-            print(f"❌ Missing result field in {endpoint} response")
-            return False
-            
-        return True
-
     async def test_connection(self) -> bool:
         """
         Test connection to the Swagger API

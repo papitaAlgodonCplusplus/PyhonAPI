@@ -35,7 +35,7 @@ try:
 except ImportError:
     SCIPY_AVAILABLE = False
 
-from models import MLTrainingData, MLPrediction, MLModelConfig
+from models import MLModelConfig
 from nutrient_calculator import NutrientCalculator
 
 @dataclass
@@ -126,10 +126,16 @@ class ProfessionalMLFertilizerOptimizer:
         self.cation_elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu']
         self.anion_elements = ['N', 'S', 'Cl', 'P', 'HCO3', 'B', 'Mo']
         
+        # Model persistence
+        self.model_save_path = os.path.join(os.path.dirname(__file__), "saved_models", "ml_optimizer_model.pkl")
+        
         print(f"[ML] Professional ML Fertilizer Optimizer initialized")
         print(f"   Model type: {self.config.model_type}")
         print(f"   Feature scaling: {self.config.feature_scaling}")
         print(f"   Max iterations: {self.config.max_iterations}")
+        
+        # Try to load existing model
+        self._try_load_existing_model()
 
     def extract_comprehensive_features(self, targets: Dict[str, float], 
                                      water: Dict[str, float],
@@ -138,7 +144,6 @@ class ProfessionalMLFertilizerOptimizer:
         """
         Extract comprehensive feature vector from real API data
         """
-        print(f"[ML] Extracting comprehensive features from API data...")
         
         # Initialize feature vector
         features = MLFeatureVector()
@@ -179,11 +184,6 @@ class ProfessionalMLFertilizerOptimizer:
         feature_vector = []
         for field in features.__dataclass_fields__:
             feature_vector.append(getattr(features, field))
-        
-        print(f"   Extracted {len(feature_vector)} features")
-        print(f"   Target cations: {features.target_cation_sum:.1f} mg/L")
-        print(f"   Target anions: {features.target_anion_sum:.1f} mg/L")
-        print(f"   Ionic ratio: {features.target_ionic_ratio:.2f}")
         
         return np.array(feature_vector, dtype=np.float64)
 
@@ -358,6 +358,9 @@ class ProfessionalMLFertilizerOptimizer:
         print(f"   Dosage prediction MAE: {test_mae_dosages:.6f}")
         print(f"   Balance prediction MAE: {test_mae_balance:.4f}")
         
+        # Save model if it's better than existing one
+        self._try_save_if_improved()
+        
         return self.training_metrics
 
     def optimize_with_ml(self, targets: Dict[str, float], 
@@ -367,6 +370,10 @@ class ProfessionalMLFertilizerOptimizer:
         """
         Advanced ML-based optimization with ionic balance consideration
         """
+        # Try to load model if not trained
+        if not self.is_trained:
+            self._try_load_existing_model()
+            
         if not self.is_trained:
             raise RuntimeError("[ERROR] ML model not trained. Call train_advanced_model() first.")
         
@@ -1020,34 +1027,47 @@ class ProfessionalMLFertilizerOptimizer:
         print(f"   Fertilizers: {len(self.fertilizer_names)}")
         print(f"   Test R²: {self.training_metrics.get('dosage_test_r2', 0):.4f}")
 
-    def get_model_info(self) -> Dict[str, Any]:
-        """Get comprehensive model information"""
-        if not self.is_trained:
-            return {
-                'status': 'not_trained',
-                'message': 'Model has not been trained yet'
-            }
-        
-        return {
-            'status': 'trained',
-            'model_type': self.config.model_type,
-            'fertilizer_count': len(self.fertilizer_names),
-            'fertilizers': self.fertilizer_names,
-            'feature_count': len(self.feature_names) if self.feature_names else 'unknown',
-            'training_metrics': self.training_metrics,
-            'capabilities': {
-                'dosage_prediction': True,
-                'ionic_balance_optimization': True,
-                'constraint_handling': True,
-                'solution_validation': True
-            },
-            'performance': {
-                'dosage_r2': self.training_metrics.get('dosage_test_r2', 0),
-                'dosage_mae': self.training_metrics.get('dosage_test_mae', 0),
-                'balance_mae': self.training_metrics.get('balance_test_mae', 0)
-            }
-        }
+    def _try_load_existing_model(self) -> None:
+        """Try to load existing saved model if available"""
+        try:
+            if os.path.exists(self.model_save_path):
+                print(f"[ML] Found existing model, attempting to load...")
+                self.load_model(self.model_save_path)
+        except Exception as e:
+            print(f"[ML] Could not load existing model: {e}")
+            print(f"   Will train new model when needed")
 
+    def _try_save_if_improved(self) -> None:
+        """Save model if it's better than existing one or no existing model"""
+        try:
+            current_r2 = self.training_metrics.get('dosage_test_r2', 0)
+            
+            # If no existing model, save current one
+            if not os.path.exists(self.model_save_path):
+                print(f"[ML] No existing model found, saving current model...")
+                self.save_model(self.model_save_path)
+                return
+            
+            # Load existing model metrics to compare
+            try:
+                with open(self.model_save_path, 'rb') as f:
+                    existing_data = pickle.load(f)
+                existing_r2 = existing_data.get('training_metrics', {}).get('dosage_test_r2', 0)
+                
+                # Save if current model is better
+                if current_r2 > existing_r2:
+                    print(f"[ML] Current model better (R²: {current_r2:.4f} vs {existing_r2:.4f}), saving...")
+                    self.save_model(self.model_save_path)
+                else:
+                    print(f"[ML] Current model not better (R²: {current_r2:.4f} vs {existing_r2:.4f}), not saving")
+                    
+            except Exception as e:
+                print(f"[ML] Could not load existing model for comparison: {e}")
+                print(f"   Saving current model anyway...")
+                self.save_model(self.model_save_path)
+                
+        except Exception as e:
+            print(f"[ML] Error during model saving: {e}")
 
 # Factory function for integration
 def create_ml_optimizer(config: Optional[MLModelConfig] = None) -> ProfessionalMLFertilizerOptimizer:
@@ -1060,63 +1080,6 @@ def create_ml_optimizer(config: Optional[MLModelConfig] = None) -> ProfessionalM
         error_msg = f"[ERROR] Cannot create ML optimizer: {e}\nInstall required packages: pip install scikit-learn scipy"
         print(error_msg)
         raise RuntimeError(error_msg)
-
-
-# Integration helper for main_api.py
-def integrate_with_main_api():
-    """
-    Instructions for integrating with main_api.py
-    """
-    integration_code = '''
-# Replace the ML optimizer initialization in main_api.py:
-
-try:
-    from ml_optimizer import create_ml_optimizer
-    ml_optimizer = create_ml_optimizer()
-    print("[SUCCESS] Professional ML optimizer loaded")
-except Exception as e:
-    print(f"[ERROR] ML optimizer initialization failed: {e}")
-    raise RuntimeError("ML optimization requires scikit-learn and scipy")
-
-# Update the ML training endpoint:
-@app.post("/train-ml-model")
-async def train_ml_model(n_samples: int = Query(default=5000)):
-    try:
-        # Get fertilizers from database
-        test_fertilizers = []
-        for name in ['nitrato de calcio', 'nitrato de potasio', 'fosfato monopotasico', 'sulfato de magnesio']:
-            fert = fertilizer_db.create_fertilizer_from_database(name)
-            if fert:
-                test_fertilizers.append(fert)
-        
-        # Generate training scenarios
-        training_scenarios = ml_optimizer.generate_real_training_data(test_fertilizers, n_samples)
-        
-        # Train the model
-        training_results = ml_optimizer.train_advanced_model(test_fertilizers, training_scenarios)
-        
-        return {
-            "status": "training_complete",
-            "training_results": training_results,
-            "model_info": ml_optimizer.get_model_info()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ML training error: {str(e)}")
-
-# Update the ML calculation method:
-if method == "machine_learning":
-    if not ml_optimizer.is_trained:
-        raise HTTPException(status_code=400, detail="ML model not trained. Call /train-ml-model first.")
-    
-    dosages_g_l = ml_optimizer.optimize_with_ml(
-        request.target_concentrations, 
-        request.water_analysis,
-        request.fertilizers
-    )
-    '''
-    
-    return integration_code
 
 
 # ============================================================================
@@ -1225,30 +1188,6 @@ class LinearAlgebraOptimizer:
 
 # Alias for backward compatibility
 MLFertilizerOptimizer = ProfessionalMLFertilizerOptimizer
-
-# Function to create ML optimizer instance (for main_api.py compatibility)
-def create_ml_optimizer_instance():
-    """Create ML optimizer instance with error handling"""
-    try:
-        return ProfessionalMLFertilizerOptimizer()
-    except ImportError as e:
-        print(f"[WARNING] ML libraries not available: {e}")
-        print("    Install with: pip install scikit-learn scipy")
-        # Return a mock optimizer that raises errors when used
-        return MockMLOptimizer()
-
-class MockMLOptimizer:
-    """Mock ML optimizer for when dependencies are not available"""
-    
-    def __init__(self):
-        self.is_trained = False
-        
-    def optimize_with_ml(self, *args, **kwargs):
-        raise RuntimeError("[ERROR] ML optimization not available. Install scikit-learn and scipy: pip install scikit-learn scipy")
-        
-    def train_model(self, *args, **kwargs):
-        raise RuntimeError("[ERROR] ML training not available. Install scikit-learn and scipy: pip install scikit-learn scipy")
-
 
 if __name__ == "__main__":
     # Test the professional ML optimizer

@@ -653,12 +653,6 @@ class CostAnalyzer:
         cost_per_liter_concentrated = total_cost_concentrated / concentrated_volume if concentrated_volume > 0 else 0
         cost_per_liter_diluted = total_cost_diluted / diluted_volume if diluted_volume > 0 else 0
         cost_per_m3_diluted = cost_per_liter_diluted * 1000
-        
-        # Generate optimization suggestions
-        optimization_suggestions = self._generate_cost_optimization_suggestions(
-            cost_per_fertilizer, percentage_per_fertilizer, total_cost_concentrated
-        )
-        
         # Create simplified cost dictionary for backward compatibility
         simple_cost_per_fertilizer = {name: info['total_cost'] for name, info in cost_per_fertilizer.items()}
         
@@ -670,7 +664,6 @@ class CostAnalyzer:
             'cost_per_m3_diluted': round(cost_per_m3_diluted, 2),
             'cost_per_fertilizer': simple_cost_per_fertilizer,  # Simplified for compatibility
             'percentage_per_fertilizer': percentage_per_fertilizer,
-            'optimization_suggestions': optimization_suggestions,
             'detailed_costs': cost_per_fertilizer,  # Detailed cost breakdown
             'regional_factor': regional_factor,
             'region': region
@@ -727,93 +720,3 @@ class CostAnalyzer:
         default_cost = 2.00
         print(f"    ⚠️  Unknown fertilizer {fertilizer_name}, using default cost: ${default_cost:.2f}/kg")
         return default_cost
-
-    def _generate_cost_optimization_suggestions(self, cost_breakdown: Dict[str, Dict], 
-                                              percentages: Dict[str, float], 
-                                              total_cost: float) -> List[str]:
-        """
-        Generate intelligent cost optimization suggestions
-        """
-        suggestions = []
-        
-        # Identify most expensive fertilizers
-        expensive_fertilizers = []
-        for fert, info in cost_breakdown.items():
-            if info['cost_per_kg'] > 3.0 and percentages.get(fert, 0) > 10:
-                expensive_fertilizers.append((fert, info['cost_per_kg'], percentages[fert]))
-        
-        if expensive_fertilizers:
-            expensive_fertilizers.sort(key=lambda x: x[2], reverse=True)  # Sort by percentage
-            top_expensive = expensive_fertilizers[0]
-            suggestions.append(f"Consider alternatives to {top_expensive[0]} (${top_expensive[1]:.2f}/kg, {top_expensive[2]:.1f}% of cost)")
-        
-        # High percentage fertilizers
-        high_percentage = [(fert, pct) for fert, pct in percentages.items() if pct > 25]
-        if high_percentage:
-            for fert, pct in high_percentage:
-                suggestions.append(f"{fert} represents {pct:.1f}% of total cost - optimize dosage or find alternatives")
-        
-        # Cost per unit suggestions
-        if total_cost > 5.0:
-            suggestions.append("Consider bulk purchasing to reduce costs - solution cost is relatively high")
-        elif total_cost < 1.0:
-            suggestions.append("Cost-effective formulation - consider investing in higher quality fertilizers")
-        
-        # Micronutrient optimization
-        micro_cost = sum(info['total_cost'] for fert, info in cost_breakdown.items() 
-                        if any(micro in fert.lower() for micro in ['hierro', 'zinc', 'cobre', 'manganeso', 'boro', 'molibdeno']))
-        
-        if micro_cost > total_cost * 0.3:
-            suggestions.append("Micronutrients represent >30% of cost - consider pre-mixed micronutrient solutions")
-        
-        # General suggestions
-        suggestions.extend([
-            "Compare prices from multiple suppliers regularly",
-            "Consider seasonal purchasing during low-demand periods",
-            "Evaluate concentrated vs. diluted fertilizer forms",
-            "Monitor market prices for bulk purchasing opportunities"
-        ])
-        
-        return suggestions[:8]  # Limit to 8 suggestions
-
-    def generate_cost_comparison(self, multiple_solutions: Dict[str, Dict]) -> Dict[str, Any]:
-        """
-        Compare costs across multiple solution formulations
-        """
-        comparison = {
-            'solutions': {},
-            'ranking': [],
-            'cost_analysis': {
-                'cheapest': None,
-                'most_expensive': None,
-                'average_cost': 0,
-                'cost_spread': 0
-            }
-        }
-        
-        costs = []
-        
-        for solution_name, cost_data in multiple_solutions.items():
-            total_cost = cost_data.get('total_cost_diluted', 0)
-            cost_per_liter = cost_data.get('cost_per_liter_diluted', 0)
-            
-            comparison['solutions'][solution_name] = {
-                'total_cost': total_cost,
-                'cost_per_liter': cost_per_liter,
-                'main_fertilizers': list(cost_data.get('percentage_per_fertilizer', {}).keys())[:3]
-            }
-            
-            costs.append(total_cost)
-            comparison['ranking'].append((solution_name, total_cost))
-        
-        # Sort by cost
-        comparison['ranking'].sort(key=lambda x: x[1])
-        
-        # Calculate statistics
-        if costs:
-            comparison['cost_analysis']['cheapest'] = comparison['ranking'][0]
-            comparison['cost_analysis']['most_expensive'] = comparison['ranking'][-1]
-            comparison['cost_analysis']['average_cost'] = sum(costs) / len(costs)
-            comparison['cost_analysis']['cost_spread'] = max(costs) - min(costs)
-        
-        return comparison

@@ -6,8 +6,7 @@ All missing functionality implemented across modular files
 
 from fastapi import FastAPI, HTTPException, Query
 from models import (
-    FertilizerRequest, SimpleResponse, FertilizerDosage, CalculationStatus,
-    MLTrainingData, MLPrediction, MLModelConfig
+    FertilizerRequest, SimpleResponse, FertilizerDosage, CalculationStatus, MLModelConfig
 )
 from nutrient_calculator import NutrientCalculator
 from fertilizer_database import FertilizerDatabase
@@ -63,9 +62,12 @@ class CompleteFertilizerCalculator:
         if method == "machine_learning":
             if not self.ml_optimizer.is_trained:
                 print("ML model not trained, training with synthetic data...")
-                self.ml_optimizer.train_model(fertilizers=request.fertilizers)
+                training_data = self.ml_optimizer.generate_real_training_data(
+                    fertilizers=request.fertilizers, num_scenarios=2000
+                )
+                self.ml_optimizer.train_model(training_data=training_data, fertilizers=request.fertilizers)
             dosages_g_l = self.ml_optimizer.optimize_with_ml(
-                request.target_concentrations, request.water_analysis
+                request.target_concentrations, request.water_analysis, fertilizers=request.fertilizers
             )
         elif method == "linear_algebra":
             dosages_g_l = self.linear_optimizer.optimize_linear_algebra(
@@ -779,9 +781,12 @@ async def test_optimization_methods(
         try:
             if not ml_optimizer.is_trained:
                 print("Training ML model...")
-                ml_optimizer.train_model(fertilizers=test_fertilizers, n_samples=2000)
-            
-            ml_result = ml_optimizer.optimize_with_ml(targets, water)
+                training_data = ml_optimizer.generate_real_training_data(
+                    fertilizers=test_fertilizers, num_scenarios=2000
+                )
+                ml_optimizer.train_model(training_data=training_data, fertilizers=test_fertilizers, n_samples=2000)
+
+            ml_result = ml_optimizer.optimize_with_ml(targets, water, test_fertilizers)
             ml_time = time.time() - start_time
             
             results['machine_learning'] = {

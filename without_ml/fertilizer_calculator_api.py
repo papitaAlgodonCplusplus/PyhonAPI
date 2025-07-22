@@ -117,7 +117,6 @@ class CostAnalysis(BaseModel):
     cost_per_m3_diluted: float
     cost_per_fertilizer: Dict[str, float]
     percentage_per_fertilizer: Dict[str, float]
-    optimization_suggestions: List[str]
 
 
 class NutrientContributions(BaseModel):
@@ -1148,7 +1147,6 @@ class CostAnalyzer:
             'cost_per_liter_diluted': total_cost / diluted_volume if diluted_volume > 0 else 0,
             'cost_per_m3_diluted': (total_cost / diluted_volume * 1000) if diluted_volume > 0 else 0,
             'cost_per_fertilizer': cost_per_fertilizer, 'percentage_per_fertilizer': percentage_per_fertilizer,
-            'optimization_suggestions': ["Compare prices from multiple suppliers regularly.", "Consider seasonal purchasing during low demand periods."]
         }
 
     def _create_comprehensive_summary_rows(self, nutrient_contributions: Dict, water_contribution: Dict, final_solution: Dict) -> List[List]:
@@ -1857,21 +1855,6 @@ class ComprehensivePDFReportGenerator:
             ]))
             
             elements.append(cost_table)
-            
-            # Add optimization suggestions
-            suggestions = cost_analysis.get('optimization_suggestions', [])
-            if suggestions:
-                elements.append(Spacer(1, 15))
-                elements.append(Paragraph("<b>Recomendaciones de Optimización:</b>", 
-                                        ParagraphStyle('SubSectionTitle', parent=self.styles['Normal'], 
-                                                     fontSize=11, textColor=colors.darkgreen)))
-                elements.append(Spacer(1, 5))
-                
-                for i, suggestion in enumerate(suggestions[:4], 1):  # Limit to 4 suggestions
-                    elements.append(Paragraph(f"{i}. {suggestion}", 
-                                            ParagraphStyle('Suggestion', parent=self.styles['Normal'], 
-                                                         fontSize=10, leftIndent=20)))
-        
         return elements
 
 # ============================================================================

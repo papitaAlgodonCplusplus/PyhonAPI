@@ -482,24 +482,6 @@ class FertilizerDatabase:
         
         return matching_fertilizers
 
-    def get_fertilizer_suggestions(self, targets: Dict[str, float]) -> Dict[str, List[str]]:
-        """
-        Get fertilizer suggestions based on target concentrations
-        """
-        suggestions = {}
-        
-        for element, target in targets.items():
-            if target > 0:
-                fertilizers = self.find_fertilizers_containing_element(element, min_content=1.0)
-                if fertilizers:
-                    # Get top 3 suggestions
-                    top_suggestions = [f['name'] for f in fertilizers[:3]]
-                    suggestions[element] = top_suggestions
-                else:
-                    suggestions[element] = ['No specific source found - use micronutrient mix']
-        
-        return suggestions
-
     def validate_database_integrity(self) -> Dict[str, Any]:
         """
         Validate database integrity and completeness
@@ -553,45 +535,6 @@ class FertilizerDatabase:
         
         return validation_results
 
-    def search_by_keywords(self, keywords: List[str]) -> List[Dict[str, Any]]:
-        """
-        Search fertilizers by multiple keywords
-        """
-        keywords_lower = [kw.lower() for kw in keywords]
-        matching_fertilizers = []
-        
-        for fert_key, fert_data in self.fertilizer_data.items():
-            score = 0
-            
-            # Check patterns
-            for pattern in fert_data['patterns']:
-                for keyword in keywords_lower:
-                    if keyword in pattern:
-                        score += 10
-            
-            # Check formula patterns
-            for formula_pattern in fert_data['formula_patterns']:
-                for keyword in keywords_lower:
-                    if keyword.upper() in formula_pattern:
-                        score += 5
-            
-            if score > 0:
-                composition = fert_data['composition']
-                total_content = sum(composition['cations'].values()) + sum(composition['anions'].values())
-                
-                matching_fertilizers.append({
-                    'name': fert_data['patterns'][0].title(),
-                    'formula': composition['formula'],
-                    'total_content': total_content,
-                    'match_score': score,
-                    'molecular_weight': composition['mw']
-                })
-        
-        # Sort by match score and total content
-        matching_fertilizers.sort(key=lambda x: (x['match_score'], x['total_content']), reverse=True)
-        
-        return matching_fertilizers
-
     def get_element_sources_summary(self) -> Dict[str, Dict[str, Any]]:
         """
         Get a summary of all available sources for each element
@@ -619,129 +562,6 @@ class FertilizerDatabase:
                 }
         
         return element_sources
-
-    def export_database_summary(self) -> str:
-        """
-        Export a human-readable summary of the database
-        """
-        summary_lines = []
-        summary_lines.append("FERTILIZER DATABASE SUMMARY")
-        summary_lines.append("=" * 50)
-        summary_lines.append(f"Total fertilizers: {len(self.fertilizer_data)}")
-        summary_lines.append("")
-        
-        # Group by type
-        type_groups = {
-            'Acids': [],
-            'Nitrates': [],
-            'Sulfates': [],
-            'Phosphates': [],
-            'Chlorides': [],
-            'Micronutrients': []
-        }
-        
-        for fert_key, fert_data in self.fertilizer_data.items():
-            name = fert_data['patterns'][0].title()
-            formula = fert_data['composition']['formula']
-            
-            if 'acido' in fert_key:
-                type_groups['Acids'].append(f"{name} ({formula})")
-            elif 'nitrato' in fert_key:
-                type_groups['Nitrates'].append(f"{name} ({formula})")
-            elif 'sulfato' in fert_key:
-                if any(micro in fert_key for micro in ['hierro', 'manganeso', 'zinc', 'cobre']):
-                    type_groups['Micronutrients'].append(f"{name} ({formula})")
-                else:
-                    type_groups['Sulfates'].append(f"{name} ({formula})")
-            elif 'fosfato' in fert_key:
-                type_groups['Phosphates'].append(f"{name} ({formula})")
-            elif 'cloruro' in fert_key:
-                type_groups['Chlorides'].append(f"{name} ({formula})")
-            else:
-                type_groups['Micronutrients'].append(f"{name} ({formula})")
-        
-        for group_name, fertilizers in type_groups.items():
-            if fertilizers:
-                summary_lines.append(f"{group_name} ({len(fertilizers)}):")
-                for fert in fertilizers:
-                    summary_lines.append(f"  - {fert}")
-                summary_lines.append("")
-        
-        # Element coverage
-        element_sources = self.get_element_sources_summary()
-        summary_lines.append("ELEMENT COVERAGE:")
-        summary_lines.append("-" * 20)
-        
-        for element, info in element_sources.items():
-            if info['available_sources'] > 0:
-                summary_lines.append(f"{element}: {info['available_sources']} sources (best: {info['best_source']} - {info['best_content']:.1f}%)")
-            else:
-                summary_lines.append(f"{element}: No sources available")
-        
-        return "\n".join(summary_lines)
-
-    def get_database_statistics(self) -> Dict[str, Any]:
-        """
-        Get comprehensive database statistics
-        """
-        stats = {
-            'total_fertilizers': len(self.fertilizer_data),
-            'total_patterns': 0,
-            'total_formula_patterns': 0,
-            'average_content': 0,
-            'content_distribution': {'high': 0, 'medium': 0, 'low': 0},
-            'molecular_weight_range': {'min': float('inf'), 'max': 0, 'average': 0},
-            'element_availability': {}
-        }
-        
-        total_content_sum = 0
-        mw_sum = 0
-        
-        # Element availability counter
-        elements = ['N', 'P', 'K', 'Ca', 'Mg', 'S', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
-        element_counts = {elem: 0 for elem in elements}
-        
-        for fert_key, fert_data in self.fertilizer_data.items():
-            composition = fert_data['composition']
-            
-            # Count patterns
-            stats['total_patterns'] += len(fert_data['patterns'])
-            stats['total_formula_patterns'] += len(fert_data['formula_patterns'])
-            
-            # Calculate total content
-            total_content = sum(composition['cations'].values()) + sum(composition['anions'].values())
-            total_content_sum += total_content
-            
-            # Content distribution
-            if total_content >= 50:
-                stats['content_distribution']['high'] += 1
-            elif total_content >= 20:
-                stats['content_distribution']['medium'] += 1
-            else:
-                stats['content_distribution']['low'] += 1
-            
-            # Molecular weight statistics
-            mw = composition['mw']
-            mw_sum += mw
-            stats['molecular_weight_range']['min'] = min(stats['molecular_weight_range']['min'], mw)
-            stats['molecular_weight_range']['max'] = max(stats['molecular_weight_range']['max'], mw)
-            
-            # Element availability
-            for element in elements:
-                cation_content = composition['cations'].get(element, 0)
-                anion_content = composition['anions'].get(element, 0)
-                if (cation_content + anion_content) > 1:
-                    element_counts[element] += 1
-        
-        # Calculate averages
-        if len(self.fertilizer_data) > 0:
-            stats['average_content'] = total_content_sum / len(self.fertilizer_data)
-            stats['molecular_weight_range']['average'] = mw_sum / len(self.fertilizer_data)
-        
-        stats['element_availability'] = element_counts
-        
-        return stats
-
 
 # Helper functions for standalone usage
 def test_fertilizer_database():

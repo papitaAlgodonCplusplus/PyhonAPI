@@ -1,0 +1,26 @@
+INFO:     Started server process [9728]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+[ML] Professional ML Fertilizer Optimizer initialized
+   Model type: GradientBoosting
+   Feature scaling: True
+   Max iterations: 200
+[LA] Linear Algebra Optimizer initialized
+[START] Complete Modular Fertilizer Calculator API v5.0.0
+[INFO] FEATURES: All modules implemented and integrated
+[INFO] METHODS: Deterministic, Linear Algebra, Machine Learning
+[INFO] API: Real Swagger integration with live data
+[INFO] PDF: Professional Excel-like reports
+======================================================================
+
+[SERVER] http://localhost:8000
+[DOCS] http://localhost:8000/docs
+[TEST] http://localhost:8000/test
+[SWAGGER] http://localhost:8000/swagger-integrated-calculation
+[ML] http://localhost:8000/train-ml-model
+[COMPARE] http://localhost:8000/test-optimization-methods
+
+[READY] Complete fertilizer calculation system operational!

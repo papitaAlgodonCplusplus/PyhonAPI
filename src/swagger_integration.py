@@ -86,6 +86,41 @@ class SwaggerAPIClient:
             print(f"❌ Authentication error: {e}")
             raise
 
+    async def get_user_by_id(self, user_id: int) -> Dict[str, Any]:
+        """Get user info by ID by fetching all users and filtering"""
+        if not self.auth_token:
+            raise Exception("Authentication required - please login first")
+
+        print(f"👤 Fetching user info for ID: {user_id}...")
+        
+        url = f"{self.base_url}/User"
+        
+        try:
+            async with self.session.get(url, headers=self.headers, timeout=30) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print(f"✅ Fetched user list successfully: {len(data.get('result', {}).get('users', []))} users found")
+                    print(f"Users data: {data.get('result', {}).get('users', [])[:5]}")  # Log first 5 users for debugging
+                    if data.get('success') and data.get('result'):
+                        users = data['result'].get('users', [])
+                        
+                        # Find user by ID
+                        for user in users:
+                            if user.get('clientId') == user_id:
+                                print(f"✅ Found user: {user.get('userEmail', 'N/A')}")
+                                return user
+                        
+                        raise Exception(f"User with ID {user_id} not found")
+                    else:
+                        error_msg = data.get('exception', 'Failed to get users')
+                        raise Exception(f"Get users failed: {error_msg}")
+                else:
+                    raise Exception(f"HTTP Error {response.status}")
+                    
+        except Exception as e:
+            print(f"❌ Get user error: {e}")
+            raise
+    
     async def get_fertilizers(self, catalog_id: int, include_inactives: bool = False) -> List[Dict[str, Any]]:
         """
         Get all fertilizers from the specified catalog

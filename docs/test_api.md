@@ -12,6 +12,7 @@ This document provides sample API calls to test the Python API after running `ma
 ## Favorite
 
 http://localhost:8000/swagger-integrated-calculation?catalog_id=1&phase_id=1&water_id=1&volume_liters=1000&use_ml=true
+http://localhost:8000/swagger-integrated-calculation?user_id=1&catalog_id=1&phase_id=1&water_id=1&volume_liters=1000&use_ml=true
 
 ### 1. Health Check
 ```bash

@@ -64,7 +64,6 @@ class ComprehensivePDFReportGenerator:
         )
         story = []
 
-        # Title and header
         title = Paragraph(
             "REPORTE DE CÁLCULO DE SOLUCIÓN NUTRITIVA", self.title_style)
         story.append(title)
@@ -73,6 +72,16 @@ class ComprehensivePDFReportGenerator:
             "Sistema Avanzado de Optimización de Fertilizantes", self.subtitle_style)
         story.append(subtitle)
         story.append(Spacer(1, 20))
+
+        # User information section (NEW SECTION)
+        user_data = calculation_data.get('user_info', {})
+        if user_data:
+            print("Adding user information section to PDF...")
+            user_info = self._create_user_info_section(user_data)
+            story.extend(user_info)
+            story.append(Spacer(1, 15))
+        else:
+            print("No user info provided, skipping user section")
 
         # Metadata section
         metadata = self._create_metadata_section(calculation_data)
@@ -99,6 +108,55 @@ class ComprehensivePDFReportGenerator:
 
         return filename
 
+    def _create_user_info_section(self, user_data: Dict[str, Any]) -> List:
+        """Create user information section for PDF header"""
+        if not REPORTLAB_AVAILABLE:
+            return []
+
+        elements = []
+        
+        # User info header
+        user_title = Paragraph("INFORMACIÓN DEL USUARIO", self.subtitle_style)
+        elements.append(user_title)
+        elements.append(Spacer(1, 10))
+        
+        # Safely extract user data with defaults
+        user_id = user_data.get('id', 'N/A')
+        user_email = user_data.get('userEmail', 'N/A')
+        client_id = user_data.get('clientId', 'N/A')
+        profile_id = user_data.get('profileId', 'N/A')
+        status_id = user_data.get('userStatusId', 'N/A')
+        
+        # Format creation date if available
+        date_created = user_data.get('dateCreated', '')
+        if date_created and len(date_created) >= 10:
+            formatted_date = date_created[:10]  # Extract YYYY-MM-DD part
+        else:
+            formatted_date = 'N/A'
+        
+        # User data table
+        user_table_data = [
+            ['ID de Usuario:', str(user_id), 'Email:', str(user_email)],
+            ['Cliente ID:', str(client_id), 'Perfil ID:', str(profile_id)],
+            ['Estado ID:', str(status_id), 'Fecha Creación:', formatted_date]
+        ]
+
+        user_table = Table(user_table_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+        user_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),  # Bold first column
+            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),  # Bold third column
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.lightblue, colors.white]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+
+        elements.append(user_table)
+        elements.append(Spacer(1, 20))
+        return elements
+    
     def _generate_text_report(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
         """Generate a text-based report when PDF generation is not available"""
 
@@ -119,8 +177,22 @@ class ComprehensivePDFReportGenerator:
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write("FERTILIZER CALCULATION REPORT\n")
                 f.write("=" * 50 + "\n")
-                f.write(
-                    f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                
+                # Add user information section (NEW)
+                user_data = calculation_data.get('user_info', {})
+                if user_data:
+                    f.write("USER INFORMATION:\n")
+                    f.write("-" * 20 + "\n")
+                    f.write(f"User ID: {user_data.get('id', 'N/A')}\n")
+                    f.write(f"Email: {user_data.get('userEmail', 'N/A')}\n")
+                    f.write(f"Client ID: {user_data.get('clientId', 'N/A')}\n")
+                    f.write(f"Profile ID: {user_data.get('profileId', 'N/A')}\n")
+                    f.write(f"Status ID: {user_data.get('userStatusId', 'N/A')}\n")
+                    date_created = user_data.get('dateCreated', '')
+                    if date_created:
+                        f.write(f"Created: {date_created[:10] if len(date_created) >= 10 else date_created}\n")
+                    f.write("\n")
 
                 # Integration metadata
                 metadata = calculation_data.get('integration_metadata', {})

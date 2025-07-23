@@ -129,12 +129,12 @@ class SolutionVerifier:
         # Critical deviation
         else:
             if final > target * 1.3:
-                severity = "Critical High" if final > target * 1.5 else "High"
-                color = "Red" if severity == "Critical High" else "Orange"
+                severity = "Deviation High" if final > target * 1.5 else "High"
+                color = "Red" if severity == "Deviation High" else "Orange"
                 return severity, color, f"{nutrient} dangerously high. Reduce fertilizer immediately and dilute solution"
             else:
-                severity = "Critical Low" if final < target * 0.5 else "Low"
-                color = "Red" if severity == "Critical Low" else "Yellow"
+                severity = "Deviation Low" if final < target * 0.5 else "Low"
+                color = "Red" if severity == "Deviation Low" else "Yellow"
                 return severity, color, f"{nutrient} critically low. Increase fertilizer significantly"
 
     def verify_ionic_relationships(self, final_meq: Dict[str, float], 

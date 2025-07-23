@@ -832,7 +832,9 @@ async def test_optimization_methods(
         raise HTTPException(status_code=500, detail=f"Optimization testing error: {str(e)}")
 
 @app.get("/swagger-integrated-calculation")
+@app.get("/swagger-integrated-calculation")
 async def swagger_integrated_calculation(
+    user_id: int,  # ADD THIS PARAMETER
     catalog_id: int = Query(default=1),
     phase_id: int = Query(default=1),
     water_id: int = Query(default=1),
@@ -840,10 +842,10 @@ async def swagger_integrated_calculation(
     use_ml: bool = Query(default=False),
     use_linear_algebra: bool = Query(default=False)
 ):
-    """Complete Swagger API integration with real fertilizer data"""
+    """Complete Swagger API integration with user info for PDF"""
     try:
         print(f"\n=== STARTING SWAGGER INTEGRATION ===")
-        print(f"Catalog ID: {catalog_id}, Phase ID: {phase_id}, Water ID: {water_id}")
+        print(f"User ID: {user_id}, Catalog ID: {catalog_id}, Phase ID: {phase_id}, Water ID: {water_id}")
         
         # Initialize Swagger client and authenticate
         swagger_client = SwaggerAPIClient("http://162.248.52.111:8082")
@@ -855,6 +857,9 @@ async def swagger_integrated_calculation(
             raise HTTPException(status_code=401, detail="Authentication failed")
         
         print("Authentication successful!")
+        
+        # Fetch user info by ID - ADD THIS
+        user_info = await swagger_client.get_user_by_id(user_id)
         
         # Fetch fertilizers
         print("Fetching fertilizers...")
@@ -878,7 +883,7 @@ async def swagger_integrated_calculation(
             print("No water analysis found, using defaults")
             water_data = {}
         
-        # Process fertilizers with chemistry data
+        # Process fertilizers with chemistry data (INLINE PROCESSING)
         print("Processing fertilizer compositions...")
         processed_fertilizers = []
         
@@ -923,17 +928,13 @@ async def swagger_integrated_calculation(
         
         # Use defaults if no data available
         if not target_concentrations:
-            target_concentrations = {
-                'N': 150, 'P': 40, 'K': 200, 'Ca': 180, 'Mg': 50, 'S': 80,
-                'Fe': 2.0, 'Mn': 0.5, 'Zn': 0.3, 'Cu': 0.1, 'B': 0.5, 'Mo': 0.05
-            }
+            print("No target concentrations found, terminating integration")
+            raise HTTPException(status_code=404, detail="No target concentrations found")
         
         if not water_analysis:
-            water_analysis = {
-                'Ca': 20, 'K': 5, 'Mg': 8, 'Na': 10, 'N': 2, 'S': 5, 
-                'Cl': 15, 'P': 1, 'HCO3': 80, 'Fe': 0.1, 'Mn': 0.05
-            }
-        
+            print("No water analysis found, terminating integration")
+            raise HTTPException(status_code=404, detail="No water analysis found")
+
         print(f"Target concentrations: {len(target_concentrations)} parameters")
         print(f"Water analysis: {len(water_analysis)} parameters")
         
@@ -958,20 +959,22 @@ async def swagger_integrated_calculation(
             method = "linear_algebra"
         else:
             method = "deterministic"
-        
+
         print(f"Starting calculation with {method} method...")
         
         # Perform calculation
         calculation_results = calculator.calculate_advanced_solution(request, method=method)
         
-        # Generate comprehensive PDF
+        # Generate comprehensive PDF with user info
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            pdf_filename = f"reports/swagger_integration_{method}_{timestamp}.pdf"
+            pdf_filename = f"reports/swagger_user_{user_id}_{method}_{timestamp}.pdf"
             
             calculation_data = {
+                "user_info": user_info,  # ADD USER INFO HERE
                 "integration_metadata": {
                     "data_source": "Complete Swagger API Integration",
+                    "user_id": user_id,  # ADD USER ID TO METADATA
                     "catalog_id": catalog_id,
                     "phase_id": phase_id,
                     "water_id": water_id,
@@ -988,7 +991,7 @@ async def swagger_integrated_calculation(
             calculation_results['pdf_report'] = {
                 "generated": True,
                 "filename": pdf_filename,
-                "integration_method": "swagger_api"
+                "integration_method": "swagger_api_with_user"
             }
             
         except Exception as e:
@@ -1000,6 +1003,7 @@ async def swagger_integrated_calculation(
         
         # Create comprehensive response
         response = {
+            "user_info": user_info,  # INCLUDE USER INFO IN RESPONSE
             "integration_metadata": calculation_data["integration_metadata"],
             "performance_metrics": {
                 "fertilizers_fetched": len(fertilizers_data),
@@ -1012,11 +1016,13 @@ async def swagger_integrated_calculation(
             "data_sources": {
                 "fertilizers_api": f"/Fertilizer?CatalogId={catalog_id}",
                 "requirements_api": f"/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
-                "water_api": f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}"
+                "water_api": f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
+                "user_api": "/User"  # ADD USER API SOURCE
             }
         }
         
         print(f"\n=== SWAGGER INTEGRATION COMPLETE ===")
+        print(f"User: {user_info.get('userEmail', 'N/A')} (ID: {user_id})")
         print(f"Method: {method}")
         print(f"Active fertilizers: {response['performance_metrics']['active_dosages']}")
         print(f"PDF: {calculation_results['pdf_report'].get('filename', 'Not generated')}")
@@ -1027,8 +1033,7 @@ async def swagger_integrated_calculation(
         raise
     except Exception as e:
         print(f"Swagger integration failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")  
 @app.get("/fertilizer-database")
 async def get_fertilizer_database():
     """Get complete fertilizer database information"""

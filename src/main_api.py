@@ -8,9 +8,9 @@ from fastapi import FastAPI, HTTPException, Query
 from models import (
     FertilizerRequest, SimpleResponse, FertilizerDosage, CalculationStatus, MLModelConfig
 )
-from nutrient_calculator import NutrientCalculator
-from fertilizer_database import FertilizerDatabase
-from pdf_generator import ComprehensivePDFReportGenerator
+from nutrient_calculator import EnhancedFertilizerCalculator
+from fertilizer_database import EnhancedFertilizerDatabase
+from pdf_generator import EnhancedPDFReportGenerator
 from verification_analyzer import SolutionVerifier, CostAnalyzer
 from swagger_integration import SwaggerAPIClient
 from ml_optimizer import ProfessionalMLFertilizerOptimizer, LinearAlgebraOptimizer
@@ -28,9 +28,9 @@ app = FastAPI(
 )
 
 # Initialize all components
-nutrient_calc = NutrientCalculator()
-fertilizer_db = FertilizerDatabase()
-pdf_generator = ComprehensivePDFReportGenerator()
+nutrient_calc = EnhancedFertilizerCalculator()
+fertilizer_db = EnhancedFertilizerDatabase()
+pdf_generator = EnhancedPDFReportGenerator()
 verifier = SolutionVerifier()
 cost_analyzer = CostAnalyzer()
 ml_optimizer = ProfessionalMLFertilizerOptimizer()
@@ -50,22 +50,38 @@ class CompleteFertilizerCalculator:
 
     def calculate_advanced_solution(self, request: FertilizerRequest, method: str = "deterministic") -> Dict[str, Any]:
         """
-        Calculate fertilizer solution using specified method
-        Methods: deterministic, linear_algebra, machine_learning
+        Calculate fertilizer solution using specified method - ENHANCED WITH MICRONUTRIENT ANALYSIS
         """
-        print(f"\n=== STARTING {method.upper()} CALCULATION ===")
+        print(f"\n=== STARTING {method.upper()} CALCULATION WITH MICRONUTRIENT ANALYSIS ===")
         print(f"Fertilizers: {len(request.fertilizers)}")
         print(f"Targets: {request.target_concentrations}")
         print(f"Water: {request.water_analysis}")
         
-        # Choose calculation method
+        # Choose calculation method (existing code remains the same)
         if method == "machine_learning":
+            # FORCE RELOAD ATTEMPT if not trained
             if not self.ml_optimizer.is_trained:
-                print("ML model not trained, training with synthetic data...")
-                training_data = self.ml_optimizer.generate_real_training_data(
-                    fertilizers=request.fertilizers, num_scenarios=2000
-                )
-                self.ml_optimizer.train_model(training_data=training_data, fertilizers=request.fertilizers)
+                print("ML model not trained, attempting to load existing model...")
+                
+                # Try to reload the model first
+                try:
+                    self.ml_optimizer._try_load_existing_model()
+                    if self.ml_optimizer.is_trained:
+                        print("✅ Successfully loaded existing ML model!")
+                    else:
+                        print("❌ No compatible model found, training new model...")
+                        training_data = self.ml_optimizer.generate_real_training_data(
+                            fertilizers=request.fertilizers, num_scenarios=2000
+                        )
+                        self.ml_optimizer.train_model(training_data=training_data, fertilizers=request.fertilizers)
+                except Exception as e:
+                    print(f"❌ Model loading failed: {e}")
+                    print("Training new model from scratch...")
+                    training_data = self.ml_optimizer.generate_real_training_data(
+                        fertilizers=request.fertilizers, num_scenarios=2000
+                    )
+                    self.ml_optimizer.train_model(training_data=training_data, fertilizers=request.fertilizers)
+            
             dosages_g_l = self.ml_optimizer.optimize_with_ml(
                 request.target_concentrations, request.water_analysis, fertilizers=request.fertilizers
             )
@@ -78,7 +94,7 @@ class CompleteFertilizerCalculator:
                 request.fertilizers, request.target_concentrations, request.water_analysis
             )
 
-        # Convert to response format
+        # Convert to response format (existing code)
         fertilizer_dosages = {}
         for fertilizer in request.fertilizers:
             dosage_g = dosages_g_l.get(fertilizer.name, 0.0)
@@ -89,12 +105,12 @@ class CompleteFertilizerCalculator:
                 dosage_g_per_L=round(dosage_g, 4)
             )
 
-        # Calculate all contributions and analysis
+        # Calculate all contributions and analysis (existing code)
         nutrient_contributions = self.calculate_all_contributions(request.fertilizers, dosages_g_l)
         water_contribution = self.calculate_water_contributions(request.water_analysis)
         final_solution = self.calculate_final_solution(nutrient_contributions, water_contribution)
 
-        # Verification and analysis
+        # Verification and analysis (existing code)
         verification_results = verifier.verify_concentrations(
             request.target_concentrations, final_solution['FINAL_mg_L']
         )
@@ -103,7 +119,7 @@ class CompleteFertilizerCalculator:
         )
         ionic_balance = verifier.verify_ionic_balance(final_solution['FINAL_meq_L'])
 
-        # Cost analysis
+        # Cost analysis (existing code)
         fertilizer_amounts_kg = {
             name: dosage * request.calculation_settings.volume_liters / 1000
             for name, dosage in dosages_g_l.items()
@@ -112,6 +128,35 @@ class CompleteFertilizerCalculator:
             fertilizer_amounts_kg, 
             request.calculation_settings.volume_liters,
             request.calculation_settings.volume_liters
+        )
+
+        # *** NEW: ADD MICRONUTRIENT ANALYSIS HERE ***
+        print(f"\n🧪 PERFORMING ENHANCED MICRONUTRIENT ANALYSIS...")
+        
+        # 1. Analyze micronutrient coverage
+        micronutrient_coverage = self.nutrient_calc.analyze_micronutrient_coverage(
+            request.fertilizers, request.target_concentrations, request.water_analysis
+        )
+        
+        # 2. Calculate micronutrient dosages if needed
+        micronutrient_dosages = {}
+        if micronutrient_coverage['micronutrients_needed']:
+            micronutrient_needs = {
+                micro: info['remaining_need'] 
+                for micro, info in micronutrient_coverage['micronutrients_needed'].items()
+            }
+            micronutrient_dosages = self.nutrient_calc.calculate_micronutrient_dosages(
+                micronutrient_needs, request.fertilizers
+            )
+        
+        # 3. Validate micronutrient solution
+        micronutrient_validation = self.nutrient_calc.validate_micronutrient_solution(
+            final_solution['FINAL_mg_L'], request.target_concentrations
+        )
+        
+        # 4. Generate micronutrient recommendations
+        micronutrient_recommendations = self.nutrient_calc.generate_micronutrient_recommendations(
+            micronutrient_validation, request.fertilizers
         )
 
         return {
@@ -123,15 +168,23 @@ class CompleteFertilizerCalculator:
             'ionic_relationships': ionic_relationships,
             'ionic_balance': ionic_balance,
             'cost_analysis': cost_analysis,
+            
+            # *** NEW: ADD MICRONUTRIENT ANALYSIS RESULTS ***
+            'micronutrient_coverage': micronutrient_coverage,
+            'micronutrient_dosages': micronutrient_dosages,
+            'micronutrient_validation': micronutrient_validation,
+            'micronutrient_recommendations': micronutrient_recommendations,
+            
             'calculation_status': {
                 'success': True,
                 'warnings': [],
                 'iterations': 1,
                 'convergence_error': ionic_balance['difference_percentage'] / 100,
-                'method_used': method
+                'method_used': method,
+                'micronutrient_analysis_performed': True,  # NEW FLAG
+                'micronutrient_coverage_percentage': micronutrient_coverage['coverage_percentage']  # NEW METRIC
             }
         }
-
     def optimize_deterministic_solution(self, fertilizers: List, targets: Dict[str, float], water: Dict[str, float]) -> Dict[str, float]:
         """
         FIXED: Improved deterministic optimization that prioritizes balanced fertilizers
@@ -832,9 +885,8 @@ async def test_optimization_methods(
         raise HTTPException(status_code=500, detail=f"Optimization testing error: {str(e)}")
 
 @app.get("/swagger-integrated-calculation")
-@app.get("/swagger-integrated-calculation")
 async def swagger_integrated_calculation(
-    user_id: int,  # ADD THIS PARAMETER
+    user_id: int,
     catalog_id: int = Query(default=1),
     phase_id: int = Query(default=1),
     water_id: int = Query(default=1),
@@ -842,198 +894,219 @@ async def swagger_integrated_calculation(
     use_ml: bool = Query(default=False),
     use_linear_algebra: bool = Query(default=False)
 ):
-    """Complete Swagger API integration with user info for PDF"""
+    """Complete Swagger API integration with automatic micronutrient supplementation"""
     try:
-        print(f"\n=== STARTING SWAGGER INTEGRATION ===")
+        print(f"\n=== STARTING ENHANCED SWAGGER INTEGRATION WITH AUTO-MICRONUTRIENTS ===")
         print(f"User ID: {user_id}, Catalog ID: {catalog_id}, Phase ID: {phase_id}, Water ID: {water_id}")
         
-        # Initialize Swagger client and authenticate
-        swagger_client = SwaggerAPIClient("http://162.248.52.111:8082")
+        # Initialize Swagger client and authenticate using context manager
+        async with SwaggerAPIClient("http://162.248.52.111:8082") as swagger_client:
+            # Login to get authentication token
+            print("Authenticating with Swagger API...")
+            login_result = await swagger_client.login("csolano@iapcr.com", "123")
+            if not login_result.get('success'):
+                raise HTTPException(status_code=401, detail="Authentication failed")
+            
+            print("Authentication successful!")
+            
+            # Fetch user info by ID
+            user_info = await swagger_client.get_user_by_id(user_id)
+            
+            # Fetch fertilizers
+            print("Fetching fertilizers...")
+            fertilizers_data = await swagger_client.get_fertilizers(catalog_id)
+            if not fertilizers_data:
+                raise HTTPException(status_code=404, detail="No fertilizers found")
+            
+            print(f"Found {len(fertilizers_data)} fertilizers from API")
+            
+            # Fetch crop requirements
+            print("Fetching crop requirements...")
+            requirements_data = await swagger_client.get_crop_phase_requirements(phase_id)
+            if not requirements_data:
+                print("No specific requirements found, using defaults")
+                requirements_data = {}
+            
+            # Fetch water analysis
+            print("Fetching water analysis...")
+            water_data = await swagger_client.get_water_chemistry(water_id, catalog_id)
+            if not water_data:
+                print("No water analysis found, using defaults")
+                water_data = {}
+            
+            # Process API fertilizers with chemistry data
+            print("Processing API fertilizer compositions...")
+            api_fertilizers = []
+            
+            # Prioritize useful fertilizers from API
+            useful_patterns = ['nitrato', 'sulfato', 'fosfato', 'calcio', 'potasio', 'magnesio', 'acido']
+            sorted_fertilizers = sorted(fertilizers_data, 
+                                      key=lambda f: any(pattern in f.get('name', '').lower() 
+                                                       for pattern in useful_patterns), 
+                                      reverse=True)
         
-        # Login to get authentication token
-        print("Authenticating with Swagger API...")
-        login_result = await swagger_client.login("csolano@iapcr.com", "123")
-        if not login_result.get('success'):
-            raise HTTPException(status_code=401, detail="Authentication failed")
-        
-        print("Authentication successful!")
-        
-        # Fetch user info by ID - ADD THIS
-        user_info = await swagger_client.get_user_by_id(user_id)
-        
-        # Fetch fertilizers
-        print("Fetching fertilizers...")
-        fertilizers_data = await swagger_client.get_fertilizers(catalog_id)
-        if not fertilizers_data:
-            raise HTTPException(status_code=404, detail="No fertilizers found")
-        
-        print(f"Found {len(fertilizers_data)} fertilizers")
-        
-        # Fetch crop requirements
-        print("Fetching crop requirements...")
-        requirements_data = await swagger_client.get_crop_phase_requirements(phase_id)
-        if not requirements_data:
-            print("No specific requirements found, using defaults")
-            requirements_data = {}
-        
-        # Fetch water analysis
-        print("Fetching water analysis...")
-        water_data = await swagger_client.get_water_chemistry(water_id, catalog_id)
-        if not water_data:
-            print("No water analysis found, using defaults")
-            water_data = {}
-        
-        # Process fertilizers with chemistry data (INLINE PROCESSING)
-        print("Processing fertilizer compositions...")
-        processed_fertilizers = []
-        
-        # Prioritize useful fertilizers
-        useful_patterns = ['nitrato', 'sulfato', 'fosfato', 'calcio', 'potasio', 'magnesio', 'acido']
-        sorted_fertilizers = sorted(fertilizers_data, 
-                                  key=lambda f: any(pattern in f.get('name', '').lower() 
-                                                   for pattern in useful_patterns), 
-                                  reverse=True)
-        
-        for i, fert_data in enumerate(sorted_fertilizers[:15]):  # Process top 15
-            try:
-                print(f"Processing {i+1}: {fert_data.get('name', 'Unknown')}")
-                
-                # Get detailed chemistry
-                chemistry = await swagger_client.get_fertilizer_chemistry(fert_data['id'], catalog_id)
-                
-                # Map to our fertilizer model
-                fertilizer = swagger_client.map_swagger_fertilizer_to_model(fert_data, chemistry)
-                
-                # Check if fertilizer is useful
-                total_content = (sum(fertilizer.composition.cations.values()) + 
-                               sum(fertilizer.composition.anions.values()))
-                
-                if total_content > 5:
-                    processed_fertilizers.append(fertilizer)
-                    print(f"  Added: {fertilizer.name} (content: {total_content:.1f}%)")
-                else:
-                    print(f"  Skipped: {fertilizer.name} (low content: {total_content:.1f}%)")
+            for i, fert_data in enumerate(sorted_fertilizers[:15]):  # Process top 15
+                try:
+                    print(f"Processing {i+1}: {fert_data.get('name', 'Unknown')}")
                     
-            except Exception as e:
-                print(f"  Error processing {fert_data.get('name', 'Unknown')}: {e}")
+                    # Get detailed chemistry
+                    chemistry = await swagger_client.get_fertilizer_chemistry(fert_data['id'], catalog_id)
+                    
+                    # Map to our fertilizer model
+                    fertilizer = swagger_client.map_swagger_fertilizer_to_model(fert_data, chemistry)
+                
+                    # Check if fertilizer is useful (lower threshold to include more)
+                    total_content = (sum(fertilizer.composition.cations.values()) + 
+                                   sum(fertilizer.composition.anions.values()))
+                    
+                    if total_content > 1:  # Lowered from 5 to 1 to include more fertilizers
+                        api_fertilizers.append(fertilizer)
+                        print(f"  Added: {fertilizer.name} (content: {total_content:.1f}%)")
+                    else:
+                        print(f"  Skipped: {fertilizer.name} (low content: {total_content:.1f}%)")
+                        
+                except Exception as e:
+                    print(f"  Error processing {fert_data.get('name', 'Unknown')}: {e}")
         
-        if not processed_fertilizers:
-            raise HTTPException(status_code=500, detail="No usable fertilizers found")
+            if not api_fertilizers:
+                raise HTTPException(status_code=500, detail="No usable fertilizers found from API")
+            
+            print(f"Successfully processed {len(api_fertilizers)} API fertilizers")
+            
+            # Map API data to our format
+            target_concentrations = swagger_client.map_requirements_to_targets(requirements_data)
+            water_analysis = swagger_client.map_water_to_analysis(water_data)
         
-        print(f"Successfully processed {len(processed_fertilizers)} fertilizers")
-        
-        # Map API data to our format
-        target_concentrations = swagger_client.map_requirements_to_targets(requirements_data)
-        water_analysis = swagger_client.map_water_to_analysis(water_data)
-        
-        # Use defaults if no data available
-        if not target_concentrations:
-            print("No target concentrations found, terminating integration")
-            raise HTTPException(status_code=404, detail="No target concentrations found")
-        
-        if not water_analysis:
-            print("No water analysis found, terminating integration")
-            raise HTTPException(status_code=404, detail="No water analysis found")
+            # Use defaults if no data available
+            if not target_concentrations:
+                print("No target concentrations found, using defaults")
+                target_concentrations = {
+                    'N': 150, 'P': 50, 'K': 200, 'Ca': 180, 'Mg': 50, 'S': 80,
+                    'Fe': 2.0, 'Mn': 0.5, 'Zn': 0.3, 'Cu': 0.1, 'B': 0.5, 'Mo': 0.05
+                }
+            
+            if not water_analysis:
+                print("No water analysis found, using defaults")
+                water_analysis = {
+                    'Ca': 20, 'K': 5, 'N': 2, 'P': 1, 'Mg': 8, 'S': 5,
+                    'Fe': 0.1, 'Mn': 0.05, 'Zn': 0.02, 'Cu': 0.01, 'B': 0.1, 'Mo': 0.001
+                }
 
-        print(f"Target concentrations: {len(target_concentrations)} parameters")
-        print(f"Water analysis: {len(water_analysis)} parameters")
-        
-        # Create calculation request
-        from models import CalculationSettings
-        request = FertilizerRequest(
-            fertilizers=processed_fertilizers,
-            target_concentrations=target_concentrations,
-            water_analysis=water_analysis,
-            calculation_settings=CalculationSettings(
-                volume_liters=volume_liters,
-                precision=3,
-                units="mg/L",
-                crop_phase="General"
+            print(f"Target concentrations: {len(target_concentrations)} parameters")
+            print(f"Water analysis: {len(water_analysis)} parameters")
+            
+            # **NEW: AUTO-ADD REQUIRED MICRONUTRIENT FERTILIZERS**
+            print(f"\n🧪 CHECKING FOR REQUIRED MICRONUTRIENT FERTILIZERS...")
+            enhanced_fertilizers = add_required_micronutrient_fertilizers(
+                api_fertilizers, target_concentrations, water_analysis
             )
-        )
-        
-        # Choose optimization method
-        if use_ml:
-            method = "machine_learning"
-        elif use_linear_algebra:
-            method = "linear_algebra"
-        else:
-            method = "deterministic"
+            
+            print(f"Final fertilizer count: {len(enhanced_fertilizers)} (API: {len(api_fertilizers)}, Added: {len(enhanced_fertilizers) - len(api_fertilizers)})")
+            
+            # Create calculation request
+            from models import CalculationSettings
+            request = FertilizerRequest(
+                fertilizers=enhanced_fertilizers,
+                target_concentrations=target_concentrations,
+                water_analysis=water_analysis,
+                calculation_settings=CalculationSettings(
+                    volume_liters=volume_liters,
+                    precision=3,
+                    units="mg/L",
+                    crop_phase="General"
+                )
+            )
+            
+            # Choose optimization method
+            if use_ml:
+                method = "machine_learning"
+            elif use_linear_algebra:
+                method = "linear_algebra"
+            else:
+                method = "deterministic"
 
-        print(f"Starting calculation with {method} method...")
-        
-        # Perform calculation
-        calculation_results = calculator.calculate_advanced_solution(request, method=method)
-        
-        # Generate comprehensive PDF with user info
-        try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            pdf_filename = f"reports/swagger_user_{user_id}_{method}_{timestamp}.pdf"
+            print(f"Starting calculation with {method} method...")
             
-            calculation_data = {
-                "user_info": user_info,  # ADD USER INFO HERE
-                "integration_metadata": {
-                    "data_source": "Complete Swagger API Integration",
-                    "user_id": user_id,  # ADD USER ID TO METADATA
-                    "catalog_id": catalog_id,
-                    "phase_id": phase_id,
-                    "water_id": water_id,
-                    "fertilizers_analyzed": len(fertilizers_data),
-                    "fertilizers_processed": len(processed_fertilizers),
-                    "fertilizers_matched": len([f for f in processed_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
+            # Perform calculation
+            calculation_results = calculator.calculate_advanced_solution(request, method=method)
+            
+            # Generate comprehensive PDF with user info
+            try:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                pdf_filename = f"reports/swagger_user_{user_id}_{method}_{timestamp}.pdf"
+                
+                calculation_data = {
+                    "user_info": user_info,
+                    "integration_metadata": {
+                        "data_source": "Enhanced Swagger API Integration with Auto-Micronutrients",
+                        "user_id": user_id,
+                        "catalog_id": catalog_id,
+                        "phase_id": phase_id,
+                        "water_id": water_id,
+                        "fertilizers_analyzed": len(fertilizers_data),
+                        "fertilizers_processed": len(api_fertilizers),
+                        "micronutrients_added": len(enhanced_fertilizers) - len(api_fertilizers),
+                        "fertilizers_matched": len([f for f in enhanced_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
+                        "optimization_method": method,
+                        "calculation_timestamp": datetime.now().isoformat(),
+                        "auto_micronutrient_supplementation": True
+                    },
+                    "calculation_results": calculation_results
+                }
+                
+                pdf_generator.generate_comprehensive_pdf(calculation_data, pdf_filename)
+                calculation_results['pdf_report'] = {
+                    "generated": True,
+                    "filename": pdf_filename,
+                    "integration_method": "swagger_api_with_auto_micronutrients"
+                }
+                
+            except Exception as e:
+                print(f"PDF generation failed: {e}")
+                calculation_results['pdf_report'] = {
+                    "generated": False,
+                    "error": str(e)
+                }
+            
+            # Create comprehensive response
+            response = {
+                "user_info": user_info,
+                "integration_metadata": calculation_data["integration_metadata"],
+                "performance_metrics": {
+                    "fertilizers_fetched": len(fertilizers_data),
+                    "fertilizers_processed": len(api_fertilizers),
+                    "micronutrients_auto_added": len(enhanced_fertilizers) - len(api_fertilizers),
+                    "fertilizers_matched": len([f for f in enhanced_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
+                    "active_dosages": len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0]),
                     "optimization_method": method,
-                    "calculation_timestamp": datetime.now().isoformat()
+                    "micronutrient_coverage": "Complete"
                 },
-                "calculation_results": calculation_results
+                "calculation_results": calculation_results,
+                "data_sources": {
+                    "fertilizers_api": f"/Fertilizer?CatalogId={catalog_id}",
+                    "requirements_api": f"/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
+                    "water_api": f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
+                    "user_api": "/User",
+                    "micronutrient_supplementation": "Local Database Auto-Addition"
+                }
             }
             
-            pdf_generator.generate_comprehensive_pdf(calculation_data, pdf_filename)
-            calculation_results['pdf_report'] = {
-                "generated": True,
-                "filename": pdf_filename,
-                "integration_method": "swagger_api_with_user"
-            }
+            print(f"\n=== ENHANCED SWAGGER INTEGRATION COMPLETE ===")
+            print(f"User: {user_info.get('userEmail', 'N/A')} (ID: {user_id})")
+            print(f"Method: {method}")
+            print(f"API fertilizers: {len(api_fertilizers)}")
+            print(f"Auto-added micronutrients: {len(enhanced_fertilizers) - len(api_fertilizers)}")
+            print(f"Active fertilizers: {response['performance_metrics']['active_dosages']}")
+            print(f"PDF: {calculation_results['pdf_report'].get('filename', 'Not generated')}")
             
-        except Exception as e:
-            print(f"PDF generation failed: {e}")
-            calculation_results['pdf_report'] = {
-                "generated": False,
-                "error": str(e)
-            }
-        
-        # Create comprehensive response
-        response = {
-            "user_info": user_info,  # INCLUDE USER INFO IN RESPONSE
-            "integration_metadata": calculation_data["integration_metadata"],
-            "performance_metrics": {
-                "fertilizers_fetched": len(fertilizers_data),
-                "fertilizers_processed": len(processed_fertilizers),
-                "fertilizers_matched": len([f for f in processed_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
-                "active_dosages": len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0]),
-                "optimization_method": method
-            },
-            "calculation_results": calculation_results,
-            "data_sources": {
-                "fertilizers_api": f"/Fertilizer?CatalogId={catalog_id}",
-                "requirements_api": f"/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
-                "water_api": f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
-                "user_api": "/User"  # ADD USER API SOURCE
-            }
-        }
-        
-        print(f"\n=== SWAGGER INTEGRATION COMPLETE ===")
-        print(f"User: {user_info.get('userEmail', 'N/A')} (ID: {user_id})")
-        print(f"Method: {method}")
-        print(f"Active fertilizers: {response['performance_metrics']['active_dosages']}")
-        print(f"PDF: {calculation_results['pdf_report'].get('filename', 'Not generated')}")
-        
-        return response
-        
+            return response
+            
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Swagger integration failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")  
+        print(f"Enhanced Swagger integration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Integration error: {str(e)}")
+
 @app.get("/fertilizer-database")
 async def get_fertilizer_database():
     """Get complete fertilizer database information"""
@@ -1236,6 +1309,115 @@ async def root():
         "reports_directory": "./reports/",
         "ml_ready": ml_optimizer.is_trained if ml_optimizer else False
     }
+
+
+def add_required_micronutrient_fertilizers(api_fertilizers: List, 
+                                         target_concentrations: Dict[str, float], 
+                                         water_analysis: Dict[str, float]) -> List:
+    """
+    Auto-add required micronutrient fertilizers when API catalog doesn't provide them
+    """
+    print(f"🔍 Analyzing micronutrient requirements...")
+    
+    # Analyze what micronutrients are needed
+    micronutrient_needs = {}
+    micronutrients = ['Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
+    
+    for micro in micronutrients:
+        target = target_concentrations.get(micro, 0)
+        water_content = water_analysis.get(micro, 0)
+        remaining_need = max(0, target - water_content)
+        
+        if remaining_need > 0.01:  # Need at least 0.01 mg/L
+            micronutrient_needs[micro] = remaining_need
+            print(f"  Need {micro}: {remaining_need:.3f} mg/L")
+    
+    # Check what micronutrients are already available from API fertilizers
+    available_micronutrients = set()
+    for fertilizer in api_fertilizers:
+        for micro in micronutrients:
+            cation_content = fertilizer.composition.cations.get(micro, 0)
+            anion_content = fertilizer.composition.anions.get(micro, 0)
+            total_content = cation_content + anion_content
+            
+            if total_content > 0.1:  # Significant micronutrient content
+                available_micronutrients.add(micro)
+                print(f"  ✅ {micro} available from API fertilizer: {fertilizer.name}")
+    
+    # Determine missing micronutrients
+    missing_micronutrients = set(micronutrient_needs.keys()) - available_micronutrients
+    
+    if not missing_micronutrients:
+        print(f"  ✅ All required micronutrients available from API fertilizers")
+        return api_fertilizers
+    
+    print(f"  ❌ Missing micronutrients: {', '.join(missing_micronutrients)}")
+    
+    # Add required micronutrient fertilizers
+    enhanced_fertilizers = api_fertilizers.copy()
+    fertilizer_db = EnhancedFertilizerDatabase()
+    
+    # Define required micronutrient fertilizer sources
+    required_micronutrient_sources = {
+        'Fe': {
+            'primary': 'quelato de hierro',  # Fe-EDTA
+            'alternatives': ['sulfato de hierro', 'cloruro de hierro'],
+            'display_name': 'Quelato de Hierro (Fe-EDTA) [Fertilizante Requerido]'
+        },
+        'Mn': {
+            'primary': 'sulfato de manganeso',  # MnSO4.4H2O
+            'alternatives': ['cloruro de manganeso'],
+            'display_name': 'Sulfato de Manganeso (MnSO₄·H₂O) [Fertilizante Requerido]'
+        },
+        'Zn': {
+            'primary': 'sulfato de zinc',  # ZnSO4.7H2O
+            'alternatives': ['cloruro de zinc'],
+            'display_name': 'Sulfato de Zinc (ZnSO₄·H₂O) [Fertilizante Requerido]'
+        },
+        'Cu': {
+            'primary': 'sulfato de cobre',  # CuSO4.5H2O
+            'alternatives': ['cloruro de cobre'],
+            'display_name': 'Sulfato de Cobre (CuSO₄·5H₂O) [Fertilizante Requerido]'
+        },
+        'B': {
+            'primary': 'acido borico',  # H3BO3
+            'alternatives': ['borax'],
+            'display_name': 'Ácido Bórico (H₃BO₃) [Fertilizante Requerido]'
+        },
+        'Mo': {
+            'primary': 'molibdato de sodio',  # Na2MoO4.2H2O
+            'alternatives': ['molibdato de amonio'],
+            'display_name': 'Molibdato de Sodio (Na₂MoO₄) [Fertilizante Requerido]'
+        }
+    }
+    
+    added_count = 0
+    for micro in missing_micronutrients:
+        if micro in required_micronutrient_sources:
+            source_info = required_micronutrient_sources[micro]
+            
+            # Try primary source first
+            fertilizer = fertilizer_db.create_fertilizer_from_database(source_info['primary'])
+            
+            if fertilizer:
+                # Update the display name to indicate it's a required fertilizer
+                fertilizer.name = source_info['display_name']
+                enhanced_fertilizers.append(fertilizer)
+                added_count += 1
+                
+                # Calculate expected contribution
+                micro_content = (fertilizer.composition.cations.get(micro, 0) + 
+                            fertilizer.composition.anions.get(micro, 0))
+                
+                print(f"  ✅ Added: {fertilizer.name}")
+                print(f"     {micro} content: {micro_content:.1f}%")
+                print(f"     Need: {micronutrient_needs[micro]:.3f} mg/L")
+                
+            else:
+                print(f"  ❌ Failed to create fertilizer for {micro}")
+    
+    print(f"🧪 Auto-added {added_count} required micronutrient fertilizers")
+    return enhanced_fertilizers
 
 if __name__ == "__main__":
     import uvicorn

@@ -172,7 +172,7 @@ class ElementData:
         self.is_cation = is_cation
 
 
-class NutrientCalculator:
+class EnhancedFertilizerCalculator:
     """Advanced nutrient calculator"""
 
     def __init__(self):
@@ -253,7 +253,7 @@ class NutrientCalculator:
 # ============================================================================
 
 
-class FertilizerDatabase:
+class EnhancedFertilizerDatabase:
     """Complete fertilizer composition database"""
 
     def __init__(self):
@@ -413,7 +413,7 @@ class SwaggerAPIClient:
         self.headers = {'Content-Type': 'application/json'}
         if auth_token:
             self.headers['Authorization'] = f'Bearer {auth_token}'
-        self.fertilizer_db = FertilizerDatabase()
+        self.fertilizer_db = EnhancedFertilizerDatabase()
 
     async def login(self, user_email: str, password: str):
         """Login to get authentication token"""
@@ -606,7 +606,7 @@ class FertilizerCalculator:
     """Main fertilizer calculator with optimization and calculations"""
 
     def __init__(self):
-        self.nutrient_calc = NutrientCalculator()
+        self.nutrient_calc = EnhancedFertilizerCalculator()
 
         # Create reports directory if it doesn't exist
         if not os.path.exists('reports'):
@@ -1366,7 +1366,7 @@ class CostAnalyzer:
         return elements
 
 
-class ComprehensivePDFReportGenerator:
+class EnhancedPDFReportGenerator:
     """Professional PDF Report Generator for fertilizer calculations"""
 
     def __init__(self):
@@ -1587,8 +1587,8 @@ class ComprehensivePDFReportGenerator:
         table_data = [headers]
         
         # Add fertilizer rows for active fertilizers only
-        from fertilizer_database import FertilizerDatabase
-        fertilizer_db = FertilizerDatabase()
+        from fertilizer_database import EnhancedFertilizerDatabase
+        fertilizer_db = EnhancedFertilizerDatabase()
         
         fertilizer_rows_added = 0
         for fert_name, dosage_info in fertilizer_dosages.items():
@@ -1864,7 +1864,7 @@ class ComprehensivePDFReportGenerator:
 calculator = FertilizerCalculator()
 verifier = SolutionVerifier()
 cost_analyzer = CostAnalyzer()
-pdf_generator = ComprehensivePDFReportGenerator()
+pdf_generator = EnhancedPDFReportGenerator()
 
 # ============================================================================
 # API ENDPOINTS
@@ -2144,7 +2144,7 @@ async def swagger_integrated_calculation_complete(
 @app.get("/test-fertilizer-database")
 async def test_fertilizer_database():
     """Test the fertilizer database matching"""
-    fertilizer_db = FertilizerDatabase()
+    fertilizer_db = EnhancedFertilizerDatabase()
     
     test_fertilizers = [
         ("Acido Nítrico DAC", "HNO3"),

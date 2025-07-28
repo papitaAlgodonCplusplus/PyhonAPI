@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-COMPLETE PDF GENERATOR MODULE
-Professional PDF report generation with Excel-like tables
+ENHANCED PDF GENERATOR MODULE WITH COMPLETE MICRONUTRIENT SUPPORT
+Professional PDF report generation with Excel-like tables including all micronutrients
 """
 
 from datetime import datetime
 import os
 from typing import Dict, List, Any, Optional
+
+# Import fertilizer database
+from fertilizer_database import EnhancedFertilizerDatabase
 
 # PDF generation imports
 try:
@@ -22,8 +25,8 @@ except ImportError:
     REPORTLAB_AVAILABLE = False
 
 
-class ComprehensivePDFReportGenerator:
-    """Professional PDF Report Generator for fertilizer calculations"""
+class EnhancedPDFReportGenerator:
+    """Enhanced PDF Report Generator with complete micronutrient support"""
 
     def __init__(self):
         if REPORTLAB_AVAILABLE:
@@ -36,268 +39,154 @@ class ComprehensivePDFReportGenerator:
                 'CustomSubtitle', parent=self.styles['Heading2'], fontSize=12, spaceAfter=20,
                 alignment=1, textColor=colors.darkgreen
             )
+            self.micronutrient_style = ParagraphStyle(
+                'MicronutrientTitle', parent=self.styles['Heading2'], fontSize=14, spaceAfter=15,
+                alignment=1, textColor=colors.darkorange
+            )
         else:
             self.styles = None
 
-    def generate_comprehensive_pdf(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
-        """Generate comprehensive PDF report with detailed Excel-like table"""
+        # Enhanced element lists including micronutrients
+        self.macro_elements = ['N', 'P', 'K', 'Ca', 'Mg', 'S']
+        self.micro_elements = ['Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
+        self.all_elements = self.macro_elements + self.micro_elements
+        
+        # Additional elements for complete coverage
+        self.other_elements = ['Na', 'NH4', 'Cl', 'HCO3']
+        self.complete_elements = self.all_elements + self.other_elements
+
+    
+    def generate_enhanced_pdf(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
+        """Generate enhanced PDF report with complete micronutrient support"""
 
         if not REPORTLAB_AVAILABLE:
             print("WARNING: PDF generation skipped - ReportLab not available")
-            # Create a simple text report instead
-            return self._generate_text_report(calculation_data, filename)
+            return ""
 
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"reports/comprehensive_report_{timestamp}.pdf"
+            filename = f"reports/enhanced_micronutrient_report_{timestamp}.pdf"
 
         # Ensure reports directory exists
         os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        print(f"Generating comprehensive PDF report: {filename}")
+        print(f"📄 Generating enhanced PDF report with micronutrients: {filename}")
 
         doc = SimpleDocTemplate(
             filename,
             pagesize=landscape(A4),
-            rightMargin=15, leftMargin=15,
-            topMargin=25, bottomMargin=25
+            rightMargin=12, leftMargin=12,
+            topMargin=20, bottomMargin=20
         )
         story = []
 
+        # Enhanced title (existing code)
         title = Paragraph(
-            "REPORTE DE CÁLCULO DE SOLUCIÓN NUTRITIVA", self.title_style)
+            "REPORTE COMPLETO DE SOLUCIÓN NUTRITIVA CON MICRONUTRIENTES", self.title_style)
         story.append(title)
 
         subtitle = Paragraph(
-            "Sistema Avanzado de Optimización de Fertilizantes", self.subtitle_style)
+            "Sistema Avanzado de Optimización con Cobertura Completa de Nutrientes", self.subtitle_style)
         story.append(subtitle)
         story.append(Spacer(1, 20))
 
-        # User information section (NEW SECTION)
+        # User information section (existing code)
         user_data = calculation_data.get('user_info', {})
         if user_data:
-            print("Adding user information section to PDF...")
-            user_info = self._create_user_info_section(user_data)
+            print("📋 Adding user information section...")
+            user_info = self._create_enhanced_user_info_section(user_data)
             story.extend(user_info)
             story.append(Spacer(1, 15))
-        else:
-            print("No user info provided, skipping user section")
 
-        # Metadata section
-        metadata = self._create_metadata_section(calculation_data)
+        # Enhanced metadata section (existing code)
+        metadata = self._create_enhanced_metadata_section(calculation_data)
         story.extend(metadata)
         story.append(Spacer(1, 25))
 
-        # Main calculation table (Excel-like format)
-        main_table = self._create_main_calculation_table(calculation_data)
+        # *** ADD MICRONUTRIENT SUPPLEMENTATION SUMMARY ***
+        supplementation_summary = self._create_micronutrient_supplementation_summary(calculation_data)
+        if supplementation_summary:
+            story.extend(supplementation_summary)
+            story.append(Spacer(1, 15))
+
+        # *** ADD REQUIRED FERTILIZERS LEGEND ***
+        legend = self._create_required_fertilizers_legend()
+        story.extend(legend)
+        story.append(Spacer(1, 15))
+
+        # Main enhanced calculation table with complete micronutrient coverage (existing but enhanced)
+        main_table = self._create_enhanced_main_table(calculation_data)
         story.append(main_table)
         story.append(PageBreak())
 
-        # Summary and analysis tables
-        summary_tables = self._create_summary_tables(calculation_data)
+        # Micronutrient analysis section (existing code)
+        micronutrient_analysis = self._create_micronutrient_analysis_section(calculation_data)
+        story.extend(micronutrient_analysis)
+        story.append(PageBreak())
+
+        # Enhanced summary and analysis tables (existing code)
+        summary_tables = self._create_enhanced_summary_tables(calculation_data)
         story.extend(summary_tables)
 
         # Build PDF
         try:
             doc.build(story)
-            print(f"PDF report generated successfully: {filename}")
+            print(f"✅ Enhanced PDF report generated successfully: {filename}")
         except Exception as e:
-            print(f"PDF generation failed: {e}")
-            # Fallback to text report
-            return self._generate_text_report(calculation_data, filename.replace('.pdf', '.txt'))
+            print(f"❌ Enhanced PDF generation failed: {e}")
 
         return filename
-
-    def _create_user_info_section(self, user_data: Dict[str, Any]) -> List:
-        """Create user information section for PDF header"""
+    
+    def _create_enhanced_user_info_section(self, user_data: Dict[str, Any]) -> List:
+        """Create enhanced user information section"""
         if not REPORTLAB_AVAILABLE:
             return []
 
         elements = []
         
-        # User info header
-        user_title = Paragraph("INFORMACIÓN DEL USUARIO", self.subtitle_style)
+        user_title = Paragraph("INFORMACIÓN DEL USUARIO Y PROYECTO", self.subtitle_style)
         elements.append(user_title)
         elements.append(Spacer(1, 10))
         
-        # Safely extract user data with defaults
-        user_id = user_data.get('id', 'N/A')
+        # Enhanced user data extraction
+        user_id = user_data.get('id', user_data.get('clientId', 'N/A'))
         user_email = user_data.get('userEmail', 'N/A')
         client_id = user_data.get('clientId', 'N/A')
         profile_id = user_data.get('profileId', 'N/A')
         status_id = user_data.get('userStatusId', 'N/A')
         
-        # Format creation date if available
+        # Format creation date
         date_created = user_data.get('dateCreated', '')
         if date_created and len(date_created) >= 10:
-            formatted_date = date_created[:10]  # Extract YYYY-MM-DD part
+            formatted_date = date_created[:10]
         else:
             formatted_date = 'N/A'
         
-        # User data table
+        # Enhanced user data table
         user_table_data = [
-            ['ID de Usuario:', str(user_id), 'Email:', str(user_email)],
+            ['ID de Usuario:', str(user_id), 'Email del Usuario:', str(user_email)],
             ['Cliente ID:', str(client_id), 'Perfil ID:', str(profile_id)],
-            ['Estado ID:', str(status_id), 'Fecha Creación:', formatted_date]
+            ['Estado de Usuario:', str(status_id), 'Fecha de Creación:', formatted_date],
+            ['Tipo de Cálculo:', 'Solución Completa con Micronutrientes', 'Versión del Sistema:', 'v6.0.0 Enhanced']
         ]
 
-        user_table = Table(user_table_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+        user_table = Table(user_table_data, colWidths=[2*inch, 2*inch, 2.2*inch, 2*inch])
         user_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),  # Bold first column
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),  # Bold third column
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.lightblue, colors.white]),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
 
         elements.append(user_table)
-        elements.append(Spacer(1, 20))
         return elements
-    
-    def _generate_text_report(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
-        """Generate a text-based report when PDF generation is not available"""
 
-        if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"reports/text_report_{timestamp}.txt"
-
-        # Ensure it's a .txt file
-        if not filename.endswith('.txt'):
-            filename = filename.replace('.pdf', '.txt')
-
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-        print(f"📄 Generating text report: {filename}")
-
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write("FERTILIZER CALCULATION REPORT\n")
-                f.write("=" * 50 + "\n")
-                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-                
-                # Add user information section (NEW)
-                user_data = calculation_data.get('user_info', {})
-                if user_data:
-                    f.write("USER INFORMATION:\n")
-                    f.write("-" * 20 + "\n")
-                    f.write(f"User ID: {user_data.get('id', 'N/A')}\n")
-                    f.write(f"Email: {user_data.get('userEmail', 'N/A')}\n")
-                    f.write(f"Client ID: {user_data.get('clientId', 'N/A')}\n")
-                    f.write(f"Profile ID: {user_data.get('profileId', 'N/A')}\n")
-                    f.write(f"Status ID: {user_data.get('userStatusId', 'N/A')}\n")
-                    date_created = user_data.get('dateCreated', '')
-                    if date_created:
-                        f.write(f"Created: {date_created[:10] if len(date_created) >= 10 else date_created}\n")
-                    f.write("\n")
-
-                # Integration metadata
-                metadata = calculation_data.get('integration_metadata', {})
-                f.write("INTEGRATION METADATA:\n")
-                f.write("-" * 25 + "\n")
-                for key, value in metadata.items():
-                    f.write(f"{key}: {value}\n")
-                f.write("\n")
-
-                # Calculation results
-                calc_results = calculation_data.get('calculation_results', {})
-
-                # Fertilizer dosages
-                fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
-                f.write("FERTILIZER DOSAGES:\n")
-                f.write("-" * 20 + "\n")
-
-                total_dosage = 0.0
-                active_fertilizers = 0
-
-                for name, dosage in fertilizer_dosages.items():
-                    dosage_g_l = dosage.get(
-                        'dosage_g_per_L', 0) if isinstance(dosage, dict) else 0
-                    dosage_ml_l = dosage.get(
-                        'dosage_ml_per_L', 0) if isinstance(dosage, dict) else 0
-
-                    if dosage_g_l > 0:
-                        f.write(
-                            f"{name}: {dosage_g_l:.3f} g/L ({dosage_ml_l:.3f} mL/L)\n")
-                        total_dosage += dosage_g_l
-                        active_fertilizers += 1
-                    else:
-                        f.write(f"{name}: 0.000 g/L (not used)\n")
-
-                f.write(f"\nSUMMARY:\n")
-                f.write(f"Total dosage: {total_dosage:.3f} g/L\n")
-                f.write(f"Active fertilizers: {active_fertilizers}\n")
-
-                # Final solution
-                final_solution = calc_results.get('final_solution', {})
-                if final_solution:
-                    f.write(f"\nFINAL SOLUTION:\n")
-                    f.write("-" * 15 + "\n")
-
-                    final_mg_l = final_solution.get('FINAL_mg_L', {})
-                    for element, concentration in final_mg_l.items():
-                        if concentration > 0.1:
-                            f.write(f"{element}: {concentration:.1f} mg/L\n")
-
-                    ec = final_solution.get('calculated_EC', 0)
-                    ph = final_solution.get('calculated_pH', 0)
-                    f.write(f"\nCalculated EC: {ec:.2f} dS/m\n")
-                    f.write(f"Calculated pH: {ph:.1f}\n")
-
-                # Ionic balance
-                ionic_balance = calc_results.get('ionic_balance', {})
-                if ionic_balance:
-                    f.write(f"\nIONIC BALANCE:\n")
-                    f.write("-" * 15 + "\n")
-                    f.write(
-                        f"Cation sum: {ionic_balance.get('cation_sum', 0):.2f} meq/L\n")
-                    f.write(
-                        f"Anion sum: {ionic_balance.get('anion_sum', 0):.2f} meq/L\n")
-                    f.write(
-                        f"Balance error: {ionic_balance.get('difference_percentage', 0):.1f}%\n")
-
-                    is_balanced = ionic_balance.get('is_balanced', 0)
-                    f.write(
-                        f"Status: {'BALANCED' if is_balanced else 'UNBALANCED'}\n")
-
-                # Cost analysis
-                cost_analysis = calc_results.get('cost_analysis', {})
-                if cost_analysis:
-                    f.write(f"\nCOST ANALYSIS:\n")
-                    f.write("-" * 15 + "\n")
-
-                    total_cost = cost_analysis.get('total_cost_diluted', 0)
-                    f.write(f"Total cost: ${total_cost:.2f}\n")
-
-                    cost_per_fert = cost_analysis.get(
-                        'cost_per_fertilizer', {})
-                    if cost_per_fert:
-                        f.write("Cost breakdown:\n")
-                        for fert, cost in cost_per_fert.items():
-                            if cost > 0:
-                                f.write(f"  {fert}: ${cost:.3f}\n")
-
-                f.write(f"\n" + "=" * 50 + "\n")
-                f.write("Report generation completed successfully\n")
-
-            print(f"✅ Text report generated successfully: {filename}")
-            return filename
-
-        except Exception as e:
-            print(f"❌ Text report generation failed: {e}")
-            # Create minimal fallback
-            fallback_filename = f"reports/minimal_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-            with open(fallback_filename, 'w') as f:
-                f.write(
-                    f"Fertilizer calculation completed at {datetime.now()}\n")
-                f.write("Report generation encountered errors.\n")
-            return fallback_filename
-
-    def _create_metadata_section(self, calculation_data: Dict[str, Any]) -> List:
-        """Create metadata section with calculation information"""
+    def _create_enhanced_metadata_section(self, calculation_data: Dict[str, Any]) -> List:
+        """Create enhanced metadata section with micronutrient info"""
         if not REPORTLAB_AVAILABLE:
             return []
 
@@ -305,36 +194,39 @@ class ComprehensivePDFReportGenerator:
         metadata = calculation_data.get('integration_metadata', {})
         calc_results = calculation_data.get('calculation_results', {})
         final_solution = calc_results.get('final_solution', {})
+        micronutrient_summary = calc_results.get('micronutrient_summary', {})
 
-        metadata_table_data = [
+        # Enhanced metadata with micronutrient info
+        enhanced_metadata_data = [
             ['Fecha y Hora:', datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-             'Fuente de Datos:', metadata.get('data_source', 'API Integration')],
+             'Fuente de Datos:', metadata.get('data_source', 'Enhanced API Integration')],
             ['Fertilizantes Analizados:', str(metadata.get('fertilizers_analyzed', 'N/A')),
-             'Volumen de Solución:', '1000 L'],
-            ['Método de Optimización:', metadata.get('method_used', 'Deterministic'),
-             'Tipo de Cálculo:', 'Optimización Avanzada'],
+             'Fertilizantes Procesados:', str(metadata.get('fertilizers_processed', 'N/A'))],
+            ['Método de Optimización:', metadata.get('method_used', 'Enhanced Deterministic'),
+             'Micronutrientes Incluidos:', 'Sí - Cobertura Completa (Fe, Mn, Zn, Cu, B, Mo)'],
             ['EC Final:', f"{final_solution.get('calculated_EC', 0):.2f} dS/m",
-             'pH Final:', f"{final_solution.get('calculated_pH', 0):.1f}"]
+             'pH Final:', f"{final_solution.get('calculated_pH', 0):.1f}"],
+            ['Micronutrientes Suministrados:', f"{micronutrient_summary.get('total_micronutrients_supplied', 0)}/6",
+             'Volumen de Solución:', '1000 L (concentrado)']
         ]
 
-        metadata_table = Table(metadata_table_data, colWidths=[
-                               2*inch, 2*inch, 2*inch, 2*inch])
+        metadata_table = Table(enhanced_metadata_data, colWidths=[2.2*inch, 2*inch, 2.2*inch, 2*inch])
         metadata_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('ROWBACKGROUNDS', (0, 0), (-1, -1),
-             [colors.lightgrey, colors.white]),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.lightgrey, colors.white]),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ]))
 
         elements.append(metadata_table)
         return elements
 
-    def _create_main_calculation_table(self, calculation_data: Dict[str, Any]) -> object:
-        """Create the main Excel-like calculation table with all fertilizer rows"""
+    
+    def _create_enhanced_main_table(self, calculation_data: Dict[str, Any]) -> object:
+        """Create enhanced main Excel-like table with complete micronutrient coverage and DEBUG INFO"""
         if not REPORTLAB_AVAILABLE:
             return None
 
@@ -344,193 +236,384 @@ class ComprehensivePDFReportGenerator:
         water_contribution = calc_results.get('water_contribution', {})
         final_solution = calc_results.get('final_solution', {})
 
-        # Define column headers exactly as specified
+        print(f"\n=== PDF TABLE DEBUG INFO ===")
+        print(f"Fertilizer dosages received: {len(fertilizer_dosages)}")
+        
+        # Enhanced column headers including ALL micronutrients
         headers = [
             'FERTILIZANTE', '% P', 'Peso molecular\n(Sal)', 'Peso molecular\n(Elem1)',
-            'Peso molecular\n(Elem2)', 'Peso de sal\n(mg o ml/L)', 'Peso de sal\n(mmol/L)',
+            'Peso molecular\n(Elem2)', 'Peso de sal\n(g/L)', 'Peso de sal\n(mmol/L)',
+            # Macronutrients
             'Ca', 'K', 'Mg', 'Na', 'NH4', 'NO3-', 'N', 'SO4=', 'S', 'Cl-',
-            'H2PO4-', 'P', 'HCO3-', 'Σ aniones', 'CE'
+            'H2PO4-', 'P', 'HCO3-',
+            # MICRONUTRIENTS (NEW!)
+            'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo',
+            # Summary
+            'Σ aniones', 'CE'
         ]
 
         table_data = [headers]
 
-        # Add fertilizer rows for active fertilizers only
-        from fertilizer_database import FertilizerDatabase
-        fertilizer_db = FertilizerDatabase()
+        # Enhanced fertilizer database for composition lookup
+        enhanced_fertilizer_db = self._get_enhanced_fertilizer_database()
 
+        # *** REPLACE this section with enhanced row creation ***
         fertilizer_rows_added = 0
+        min_threshold = 0.0  # Include ALL fertilizers for debugging
+        
         for fert_name, dosage_info in fertilizer_dosages.items():
-            if isinstance(dosage_info, dict):
-                dosage_g_l = dosage_info.get('dosage_g_per_L', 0)
-            elif hasattr(dosage_info, 'dosage_g_per_L'):
-                dosage_g_l = dosage_info.dosage_g_per_L
-            else:
-                dosage_g_l = 0
-            if dosage_g_l > 0:
-                row = self._create_fertilizer_row(
-                    fert_name, dosage_info, fertilizer_db)
+            dosage_g_l = self._extract_dosage_value(dosage_info)
+            
+            print(f"  Processing {fert_name}: {dosage_g_l:.8f} g/L")
+            
+            if dosage_g_l >= min_threshold:
+                # *** USE THE NEW ENHANCED FUNCTION HERE ***
+                row = self._create_enhanced_fertilizer_row_with_marking(fert_name, dosage_info, enhanced_fertilizer_db)
                 table_data.append(row)
                 fertilizer_rows_added += 1
-                print(
-                    f"    Added fertilizer row: {fert_name} ({dosage_g_l:.3f} g/L)")
+                
+                # Mark micronutrient fertilizers
+                is_micro = any(micro in fert_name.lower() 
+                            for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
+                is_required = '[Fertilizante Requerido]' in fert_name
+                
+                micro_indicator = "🧪" if is_micro or is_required else "📋"
+                print(f"    ✅ Added fertilizer row: {micro_indicator} {fert_name} ({dosage_g_l:.6f} g/L)")
+            else:
+                print(f"    ❌ Skipped {fert_name}: dosage too low ({dosage_g_l:.8f} g/L)")
 
         print(f"    Total fertilizer rows added: {fertilizer_rows_added}")
 
-        # Add summary rows
-        summary_rows = self._create_comprehensive_summary_rows(
+        # Add enhanced summary rows with micronutrients (existing function)
+        summary_rows = self._create_enhanced_summary_rows(
             nutrient_contributions, water_contribution, final_solution
         )
         table_data.extend(summary_rows)
-        print(f"    Added {len(summary_rows)} summary rows")
+        print(f"    Added {len(summary_rows)} enhanced summary rows")
 
-        # Calculate number of fertilizer rows for styling
-        num_fertilizer_rows = fertilizer_rows_added
-
-        print(
-            f"    Creating table with {len(table_data)} total rows ({num_fertilizer_rows} fertilizer + {len(summary_rows)} summary)")
-
-        # Create table with professional styling
+        # Create table with enhanced styling
         table = Table(table_data, repeatRows=1)
+        
+        # Calculate column count for styling
+        num_cols = len(headers)
+        micronutrient_start_col = headers.index('Fe')
+        micronutrient_end_col = headers.index('Mo')
+        
         table.setStyle(TableStyle([
             # Header styling
             ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 7),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('TOPPADDING', (0, 0), (-1, 0), 6),
 
-            # Fertilizer rows styling (if any exist)
-            ('FONTNAME', (0, 1), (-1, num_fertilizer_rows), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, num_fertilizer_rows), 6),
-            ('ROWBACKGROUNDS', (0, 1), (-1, num_fertilizer_rows),
-            [colors.white, colors.lightgrey]),
-
+            # Highlight micronutrient columns
+            ('BACKGROUND', (micronutrient_start_col, 0), (micronutrient_end_col, 0), colors.darkorange),
+            
+            # Fertilizer rows styling
+            ('FONTNAME', (0, 1), (-1, fertilizer_rows_added), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, fertilizer_rows_added), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, fertilizer_rows_added), [colors.white, colors.lightgrey]),
+            
             # Summary rows styling
-            ('BACKGROUND', (0, num_fertilizer_rows+1), (-1, -1), colors.lightyellow),
-            ('FONTNAME', (0, num_fertilizer_rows+1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, num_fertilizer_rows+1), (-1, -1), 6),
+            ('BACKGROUND', (0, fertilizer_rows_added+1), (-1, -1), colors.lightyellow),
+            ('FONTNAME', (0, fertilizer_rows_added+1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, fertilizer_rows_added+1), (-1, -1), 5),
 
             # Borders and alignment
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            
+            # Special highlighting for micronutrient columns in data
+            ('BACKGROUND', (micronutrient_start_col, 1), (micronutrient_end_col, -1), colors.mistyrose),
         ]))
 
+        # *** APPLY REQUIRED FERTILIZER STYLING ***
+        self._apply_required_fertilizer_styling(table, fertilizer_dosages, fertilizer_rows_added)
+
+        print(f"=== PDF TABLE DEBUG COMPLETE ===\n")
         return table
 
-    def _create_fertilizer_row(self, fert_name: str, dosage_info, fertilizer_db) -> List:
-        """Create a detailed table row for a single fertilizer with CORRECT calculations"""
-        if isinstance(dosage_info, dict):
-            dosage_g_l = dosage_info.get('dosage_g_per_L', 0)
-        elif hasattr(dosage_info, 'dosage_g_per_L'):
-            dosage_g_l = dosage_info.dosage_g_per_L
-        else:
-            dosage_g_l = 0
+    def _create_enhanced_fertilizer_row(self, fert_name: str, dosage_info, fertilizer_db: Dict) -> List:
+        """Create enhanced fertilizer row with complete micronutrient support"""
+        dosage_g_l = self._extract_dosage_value(dosage_info)
+        
+        print(f"      Creating enhanced row for {fert_name}: {dosage_g_l:.4f} g/L")
 
-        print(f"      Creating row for {fert_name}: {dosage_g_l:.3f} g/L")
-
-        # Get fertilizer composition from database
-        composition_data = fertilizer_db.find_fertilizer_composition(
-            fert_name, fert_name)
-
+        # Get enhanced composition from database
+        composition_data = self._find_enhanced_composition(fert_name, fertilizer_db)
+        
         if composition_data:
             molecular_weight = composition_data['mw']
             cations = composition_data['cations']
             anions = composition_data['anions']
-            print(f"        Found composition: {composition_data['formula']}")
+            print(f"        Found enhanced composition: {composition_data['formula']}")
         else:
+            # Default composition
             molecular_weight = 100
-            cations = {'Ca': 0, 'K': 0, 'Mg': 0, 'Na': 0, 'NH4': 0}
-            anions = {'N': 0, 'S': 0, 'Cl': 0, 'P': 0, 'HCO3': 0}
+            cations = {elem: 0 for elem in ['Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu']}
+            anions = {elem: 0 for elem in ['N', 'S', 'Cl', 'P', 'HCO3', 'B', 'Mo']}
             print(f"        Using default composition")
 
         dosage_mg_l = dosage_g_l * 1000
         dosage_mmol_l = dosage_mg_l / molecular_weight if molecular_weight > 0 else 0
 
         # Get main elements for molecular weight display
-        main_elements = []
-        all_nutrients = {**cations, **anions}
-        sorted_nutrients = sorted(all_nutrients.items(),
-                                key=lambda x: x[1], reverse=True)
-
-        # Get atomic weights for main elements
-        atomic_weights = {
-            'Ca': 40.08, 'K': 39.10, 'Mg': 24.31, 'Na': 22.99, 'NH4': 18.04,
-            'N': 14.01, 'S': 32.06, 'P': 30.97, 'Cl': 35.45, 'Fe': 55.85,
-            'Mn': 54.94, 'Zn': 65.38, 'Cu': 63.55, 'B': 10.81, 'Mo': 95.96
-        }
-
-        for elem, content in sorted_nutrients:
-            if content > 1 and elem in atomic_weights:
-                main_elements.append((elem, atomic_weights[elem]))
-                if len(main_elements) >= 2:
-                    break
-
+        main_elements = self._get_main_elements(cations, anions)
         elem1_weight = main_elements[0][1] if len(main_elements) > 0 else 0
         elem2_weight = main_elements[1][1] if len(main_elements) > 1 else 0
 
-        # Calculate actual nutrient contributions (mg/L)
-        purity_factor = 98.0 / 100.0  # Assume 98% purity
-
-        nutrient_contributions = {}
-        for elem in ['Ca', 'K', 'Mg', 'Na', 'NH4', 'N', 'S', 'Cl', 'P', 'HCO3']:
-            cation_content = cations.get(elem, 0)
-            anion_content = anions.get(elem, 0)
-            total_content = cation_content + anion_content
-
-            if total_content > 0:
-                contribution = dosage_mg_l * \
-                    (total_content / 100.0) * purity_factor
-                nutrient_contributions[elem] = contribution
-            else:
-                nutrient_contributions[elem] = 0
-
-        # Calculate anion sum and EC contribution
-        anion_elements = ['N', 'S', 'Cl', 'P', 'HCO3']
-        anion_sum = sum(nutrient_contributions.get(elem, 0)
-                        for elem in anion_elements)
-
-        # EC contribution (simplified calculation)
-        ec_contribution = dosage_mmol_l * 0.1
-
-        print(
-            f"        Main contributions: Ca={nutrient_contributions.get('Ca', 0):.1f}, K={nutrient_contributions.get('K', 0):.1f}, N={nutrient_contributions.get('N', 0):.1f} mg/L")
-
+        # Calculate nutrient contributions (including micronutrients)
+        purity_factor = 98.0 / 100.0
+        
+        # Enhanced row with ALL elements including micronutrients
         row = [
             fert_name,                                      # FERTILIZANTE
             "98.0",                                         # % P (purity)
             f"{molecular_weight:.1f}",                      # Peso molecular (Sal)
-            # Peso molecular (Elem1)
-            f"{elem1_weight:.1f}",
-            # Peso molecular (Elem2)
-            f"{elem2_weight:.1f}",
-            # Peso de sal (mg o ml/L) - in g/L
-            f"{dosage_g_l:.3f}",
-            f"{dosage_mmol_l:.3f}",                        # Peso de sal (mmol/L)
-            f"{nutrient_contributions.get('Ca', 0):.1f}",   # Ca contribution
-            f"{nutrient_contributions.get('K', 0):.1f}",    # K contribution
-            f"{nutrient_contributions.get('Mg', 0):.1f}",   # Mg contribution
-            f"{nutrient_contributions.get('Na', 0):.1f}",   # Na contribution
-            f"{nutrient_contributions.get('NH4', 0):.1f}",  # NH4 contribution
-            f"{nutrient_contributions.get('N', 0):.1f}",    # NO3- contribution
-            f"{nutrient_contributions.get('N', 0):.1f}",    # N contribution
-            f"{nutrient_contributions.get('S', 0):.1f}",    # SO4= contribution
-            f"{nutrient_contributions.get('S', 0):.1f}",    # S contribution
-            f"{nutrient_contributions.get('Cl', 0):.1f}",   # Cl- contribution
-            f"{nutrient_contributions.get('P', 0):.1f}",    # H2PO4- contribution
-            f"{nutrient_contributions.get('P', 0):.1f}",    # P contribution
-            f"{nutrient_contributions.get('HCO3', 0):.1f}",  # HCO3- contribution
-            f"{anion_sum:.1f}",                            # Σ aniones
-            f"{ec_contribution:.2f}"                       # CE contribution
+            f"{elem1_weight:.1f}",                          # Peso molecular (Elem1)
+            f"{elem2_weight:.1f}",                          # Peso molecular (Elem2)
+            f"{dosage_g_l:.4f}",                           # Peso de sal (g/L) - enhanced precision
+            f"{dosage_mmol_l:.4f}",                        # Peso de sal (mmol/L)
+            
+            # Macronutrient contributions
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Ca', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('K', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mg', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Na', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('NH4', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('Cl', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('HCO3', 0), purity_factor):.1f}",
+            
+            # MICRONUTRIENT CONTRIBUTIONS (NEW!)
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Fe', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mn', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Zn', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Cu', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('B', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('Mo', 0), purity_factor):.3f}",
+            
+            # Summary columns
+            f"{self._calculate_anion_sum(dosage_mg_l, anions, purity_factor):.1f}",
+            f"{dosage_mmol_l * 0.1:.3f}"                   # CE contribution
         ]
 
         return row
 
-    def _create_comprehensive_summary_rows(self, nutrient_contributions: Dict, water_contribution: Dict, final_solution: Dict) -> List[List]:
-        """Create comprehensive summary rows matching Excel format"""
+    def _create_micronutrient_analysis_section(self, calculation_data: Dict[str, Any]) -> List:
+        """Create detailed micronutrient analysis section with enhanced data"""
+        if not REPORTLAB_AVAILABLE:
+            return []
+
+        elements = []
+        calc_results = calculation_data.get('calculation_results', {})
+        
+        # *** USE NEW MICRONUTRIENT ANALYSIS DATA ***
+        micronutrient_coverage = calc_results.get('micronutrient_coverage', {})
+        micronutrient_validation = calc_results.get('micronutrient_validation', {})
+        micronutrient_recommendations = calc_results.get('micronutrient_recommendations', [])
+        
+        final_solution = calc_results.get('final_solution', {})
+        
+        # Micronutrient analysis title
+        micro_title = Paragraph("ANÁLISIS DETALLADO DE MICRONUTRIENTES", self.micronutrient_style)
+        elements.append(micro_title)
+        elements.append(Spacer(1, 15))
+
+        # *** NEW: MICRONUTRIENT COVERAGE ANALYSIS ***
+        if micronutrient_coverage:
+            coverage_title = Paragraph("Análisis de Cobertura de Micronutrientes", self.subtitle_style)
+            elements.append(coverage_title)
+            elements.append(Spacer(1, 10))
+            
+            coverage_data = [
+                ['Parámetro', 'Valor', 'Estado'],
+                [
+                    'Cobertura de Micronutrientes',
+                    f"{micronutrient_coverage.get('coverage_percentage', 0):.1f}%",
+                    'Completa' if micronutrient_coverage.get('coverage_percentage', 0) >= 90 else 'Incompleta'
+                ],
+                [
+                    'Micronutrientes Necesarios',
+                    str(len(micronutrient_coverage.get('micronutrients_needed', {}))),
+                    'Normal'
+                ],
+                [
+                    'Micronutrientes Faltantes',
+                    str(len(micronutrient_coverage.get('missing_micronutrients', []))),
+                    'Crítico' if micronutrient_coverage.get('missing_micronutrients') else 'Bien'
+                ]
+            ]
+            
+            coverage_table = Table(coverage_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+            coverage_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkorange),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]))
+            
+            elements.append(coverage_table)
+            elements.append(Spacer(1, 20))
+
+        # *** ENHANCED: MICRONUTRIENT VALIDATION STATUS ***
+        if micronutrient_validation and micronutrient_validation.get('micronutrient_status'):
+            validation_title = Paragraph("Estado de Validación de Micronutrientes", self.subtitle_style)
+            elements.append(validation_title)
+            elements.append(Spacer(1, 10))
+            
+            validation_data = [
+                ['Micronutriente', 'Concentración\nFinal (mg/L)', 'Objetivo\n(mg/L)', 'Desviación (%)', 'Estado', 'Límite Seguridad']
+            ]
+            
+            status_colors = {
+                'adequate': colors.green,
+                'acceptable': colors.orange,
+                'deficient': colors.red,
+                'toxic': colors.darkred,
+                'off_target': colors.yellow
+            }
+            
+            for micro, status_info in micronutrient_validation['micronutrient_status'].items():
+                final_conc = status_info['final']
+                target_conc = status_info['target']
+                deviation = status_info['deviation_percent']
+                status = status_info['status']
+                safety_limit = status_info['safety_limit']
+                
+                validation_data.append([
+                    micro,
+                    f"{final_conc:.3f}",
+                    f"{target_conc:.3f}",
+                    f"{deviation:+.1f}%",
+                    status.title(),
+                    f"{safety_limit:.1f}"
+                ])
+
+            validation_table = Table(validation_data, colWidths=[1*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch])
+            
+            # Create style with color coding
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkorange),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]
+            
+            # Add status-specific coloring
+            for i, (micro, status_info) in enumerate(micronutrient_validation['micronutrient_status'].items(), 1):
+                status = status_info['status']
+                if status in status_colors:
+                    table_style.append(('TEXTCOLOR', (4, i), (4, i), status_colors[status]))
+                    table_style.append(('FONTNAME', (4, i), (4, i), 'Helvetica-Bold'))
+            
+            validation_table.setStyle(TableStyle(table_style))
+            elements.append(validation_table)
+            elements.append(Spacer(1, 20))
+
+        # *** NEW: MICRONUTRIENT RECOMMENDATIONS SECTION ***
+        if micronutrient_recommendations:
+            recommendations_title = Paragraph("Recomendaciones de Micronutrientes", self.subtitle_style)
+            elements.append(recommendations_title)
+            elements.append(Spacer(1, 10))
+            
+            # Create bulleted list of recommendations
+            recommendations_text = "<br/>".join([f"• {rec}" for rec in micronutrient_recommendations[:8]])
+            
+            recommendations_paragraph = Paragraph(
+                recommendations_text,
+                ParagraphStyle('Recommendations', parent=self.styles['Normal'],
+                            fontSize=9, leftIndent=20, spaceAfter=15)
+            )
+            elements.append(recommendations_paragraph)
+            elements.append(Spacer(1, 15))
+
+        # Micronutrient fertilizer summary (enhanced existing code)
+        elements.append(Paragraph("FERTILIZANTES MICRONUTRIENTES UTILIZADOS", self.subtitle_style))
+        elements.append(Spacer(1, 10))
+        
+        fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
+        micro_fert_data = [['Fertilizante Micronutriente', 'Dosificación (g/L)', 'Dosificación (mL/L)', 'Elemento Principal', 'Aporte (mg/L)', 'Tipo']]
+        
+        micro_fertilizers_used = 0
+        for fert_name, dosage_info in fertilizer_dosages.items():
+            dosage_g_l = self._extract_dosage_value(dosage_info)
+            if dosage_g_l > 0.0001:
+                # Check if it's a micronutrient fertilizer
+                is_micro_fert = any(micro in fert_name.lower() 
+                                for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
+                
+                if is_micro_fert:
+                    dosage_ml_l = getattr(dosage_info, 'dosage_ml_per_L', dosage_g_l) if hasattr(dosage_info, 'dosage_ml_per_L') else dosage_g_l
+                    
+                    # Determine main element and contribution
+                    main_element, contribution = self._get_main_micronutrient_contribution(fert_name, dosage_g_l)
+                    
+                    # *** ENHANCED: DETECT REQUIRED FERTILIZERS ***
+                    fertilizer_type = "Requerido" if '[Fertilizante Requerido]' in fert_name else "Catálogo API"
+                    clean_name = fert_name.replace(' [Fertilizante Requerido]', '')
+                    
+                    micro_fert_data.append([
+                        clean_name,
+                        f"{dosage_g_l:.4f}",
+                        f"{dosage_ml_l:.4f}",
+                        main_element,
+                        f"{contribution:.3f}",
+                        fertilizer_type
+                    ])
+                    micro_fertilizers_used += 1
+        
+        if micro_fertilizers_used > 0:
+            micro_fert_table = Table(micro_fert_data, colWidths=[2.2*inch, 1*inch, 1*inch, 0.8*inch, 1*inch, 1*inch])
+            
+            # Enhanced styling with required fertilizer highlighting
+            table_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkorange),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]
+            
+            # Highlight required fertilizers
+            for i, row in enumerate(micro_fert_data[1:], 1):
+                if len(row) > 5 and row[5] == "Requerido":
+                    table_style.append(('BACKGROUND', (5, i), (5, i), colors.lightcyan))
+                    table_style.append(('TEXTCOLOR', (5, i), (5, i), colors.darkblue))
+                    table_style.append(('FONTNAME', (5, i), (5, i), 'Helvetica-Bold'))
+            
+            micro_fert_table.setStyle(TableStyle(table_style))
+            elements.append(micro_fert_table)
+        else:
+            no_micro_text = Paragraph("⚠️ NO SE DETECTARON FERTILIZANTES MICRONUTRIENTES EN LA FORMULACIÓN", 
+                                    self.styles['Normal'])
+            elements.append(no_micro_text)
+
+        return elements
+
+    def _create_enhanced_summary_rows(self, nutrient_contributions: Dict, water_contribution: Dict, final_solution: Dict) -> List[List]:
+        """Create enhanced summary rows with complete micronutrient support"""
         summary_rows = []
 
         # Get data dictionaries
@@ -546,12 +629,13 @@ class ComprehensivePDFReportGenerator:
         final_mmol = final_solution.get('FINAL_mmol_L', {})
         final_meq = final_solution.get('FINAL_meq_L', {})
 
-        anion_elements = ['N', 'S', 'Cl', 'P', 'HCO3']
+        # Enhanced element list including micronutrients
+        elements_for_summary = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'N', 'N', 'S', 'S', 'Cl', 'P', 'P', 'HCO3', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
+        anion_elements = ['N', 'S', 'Cl', 'P', 'HCO3', 'B', 'Mo']
         final_ec = final_solution.get('calculated_EC', 0)
 
-        # Row 1: Aporte de Iones (mg/L)
-        aporte_anion_sum = sum(aporte_mg.get(elem, 0)
-                               for elem in anion_elements)
+        # Row 1: Aporte de Iones (mg/L) - Enhanced with micronutrients
+        aporte_anion_sum = sum(aporte_mg.get(elem, 0) for elem in anion_elements)
         row1 = ['Aporte de Iones (mg/L)', '', '', '', '', '', '',
                 f"{aporte_mg.get('Ca', 0):.1f}", f"{aporte_mg.get('K', 0):.1f}",
                 f"{aporte_mg.get('Mg', 0):.1f}", f"{aporte_mg.get('Na', 0):.1f}",
@@ -559,11 +643,15 @@ class ComprehensivePDFReportGenerator:
                 f"{aporte_mg.get('N', 0):.1f}", f"{aporte_mg.get('S', 0):.1f}",
                 f"{aporte_mg.get('S', 0):.1f}", f"{aporte_mg.get('Cl', 0):.1f}",
                 f"{aporte_mg.get('P', 0):.1f}", f"{aporte_mg.get('P', 0):.1f}",
-                f"{aporte_mg.get('HCO3', 0):.1f}", f"{aporte_anion_sum:.1f}", f"{final_ec:.2f}"]
+                f"{aporte_mg.get('HCO3', 0):.1f}",
+                # MICRONUTRIENTS
+                f"{aporte_mg.get('Fe', 0):.3f}", f"{aporte_mg.get('Mn', 0):.3f}",
+                f"{aporte_mg.get('Zn', 0):.3f}", f"{aporte_mg.get('Cu', 0):.3f}",
+                f"{aporte_mg.get('B', 0):.3f}", f"{aporte_mg.get('Mo', 0):.3f}",
+                f"{aporte_anion_sum:.1f}", f"{final_ec:.2f}"]
 
         # Row 2: Aporte de Iones (mmol/L)
-        aporte_mmol_anion_sum = sum(aporte_mmol.get(elem, 0)
-                                    for elem in anion_elements)
+        aporte_mmol_anion_sum = sum(aporte_mmol.get(elem, 0) for elem in anion_elements)
         row2 = ['Aporte de Iones (mmol/L)', '', '', '', '', '', '',
                 f"{aporte_mmol.get('Ca', 0):.3f}", f"{aporte_mmol.get('K', 0):.3f}",
                 f"{aporte_mmol.get('Mg', 0):.3f}", f"{aporte_mmol.get('Na', 0):.3f}",
@@ -571,11 +659,15 @@ class ComprehensivePDFReportGenerator:
                 f"{aporte_mmol.get('N', 0):.3f}", f"{aporte_mmol.get('S', 0):.3f}",
                 f"{aporte_mmol.get('S', 0):.3f}", f"{aporte_mmol.get('Cl', 0):.3f}",
                 f"{aporte_mmol.get('P', 0):.3f}", f"{aporte_mmol.get('P', 0):.3f}",
-                f"{aporte_mmol.get('HCO3', 0):.3f}", f"{aporte_mmol_anion_sum:.3f}", '']
+                f"{aporte_mmol.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS  
+                f"{aporte_mmol.get('Fe', 0):.4f}", f"{aporte_mmol.get('Mn', 0):.4f}",
+                f"{aporte_mmol.get('Zn', 0):.4f}", f"{aporte_mmol.get('Cu', 0):.4f}",
+                f"{aporte_mmol.get('B', 0):.4f}", f"{aporte_mmol.get('Mo', 0):.4f}",
+                f"{aporte_mmol_anion_sum:.3f}", '']
 
         # Row 3: Aporte de Iones (meq/L)
-        aporte_meq_anion_sum = sum(aporte_meq.get(elem, 0)
-                                   for elem in anion_elements)
+        aporte_meq_anion_sum = sum(aporte_meq.get(elem, 0) for elem in anion_elements)
         row3 = ['Aporte de Iones (meq/L)', '', '', '', '', '', '',
                 f"{aporte_meq.get('Ca', 0):.3f}", f"{aporte_meq.get('K', 0):.3f}",
                 f"{aporte_meq.get('Mg', 0):.3f}", f"{aporte_meq.get('Na', 0):.3f}",
@@ -583,7 +675,12 @@ class ComprehensivePDFReportGenerator:
                 f"{aporte_meq.get('N', 0):.3f}", f"{aporte_meq.get('S', 0):.3f}",
                 f"{aporte_meq.get('S', 0):.3f}", f"{aporte_meq.get('Cl', 0):.3f}",
                 f"{aporte_meq.get('P', 0):.3f}", f"{aporte_meq.get('P', 0):.3f}",
-                f"{aporte_meq.get('HCO3', 0):.3f}", f"{aporte_meq_anion_sum:.3f}", '']
+                f"{aporte_meq.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS
+                f"{aporte_meq.get('Fe', 0):.4f}", f"{aporte_meq.get('Mn', 0):.4f}",
+                f"{aporte_meq.get('Zn', 0):.4f}", f"{aporte_meq.get('Cu', 0):.4f}",
+                f"{aporte_meq.get('B', 0):.4f}", f"{aporte_meq.get('Mo', 0):.4f}",
+                f"{aporte_meq_anion_sum:.3f}", '']
 
         # Row 4: Iones en Agua (mg/L)
         agua_anion_sum = sum(agua_mg.get(elem, 0) for elem in anion_elements)
@@ -594,11 +691,15 @@ class ComprehensivePDFReportGenerator:
                 f"{agua_mg.get('N', 0):.1f}", f"{agua_mg.get('S', 0):.1f}",
                 f"{agua_mg.get('S', 0):.1f}", f"{agua_mg.get('Cl', 0):.1f}",
                 f"{agua_mg.get('P', 0):.1f}", f"{agua_mg.get('P', 0):.1f}",
-                f"{agua_mg.get('HCO3', 0):.1f}", f"{agua_anion_sum:.1f}", '']
+                f"{agua_mg.get('HCO3', 0):.1f}",
+                # MICRONUTRIENTS
+                f"{agua_mg.get('Fe', 0):.3f}", f"{agua_mg.get('Mn', 0):.3f}",
+                f"{agua_mg.get('Zn', 0):.3f}", f"{agua_mg.get('Cu', 0):.3f}",
+                f"{agua_mg.get('B', 0):.3f}", f"{agua_mg.get('Mo', 0):.3f}",
+                f"{agua_anion_sum:.1f}", '']
 
         # Row 5: Iones en Agua (mmol/L)
-        agua_mmol_anion_sum = sum(agua_mmol.get(elem, 0)
-                                  for elem in anion_elements)
+        agua_mmol_anion_sum = sum(agua_mmol.get(elem, 0) for elem in anion_elements)
         row5 = ['Iones en Agua (mmol/L)', '', '', '', '', '', '',
                 f"{agua_mmol.get('Ca', 0):.3f}", f"{agua_mmol.get('K', 0):.3f}",
                 f"{agua_mmol.get('Mg', 0):.3f}", f"{agua_mmol.get('Na', 0):.3f}",
@@ -606,11 +707,15 @@ class ComprehensivePDFReportGenerator:
                 f"{agua_mmol.get('N', 0):.3f}", f"{agua_mmol.get('S', 0):.3f}",
                 f"{agua_mmol.get('S', 0):.3f}", f"{agua_mmol.get('Cl', 0):.3f}",
                 f"{agua_mmol.get('P', 0):.3f}", f"{agua_mmol.get('P', 0):.3f}",
-                f"{agua_mmol.get('HCO3', 0):.3f}", f"{agua_mmol_anion_sum:.3f}", '']
+                f"{agua_mmol.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS
+                f"{agua_mmol.get('Fe', 0):.4f}", f"{agua_mmol.get('Mn', 0):.4f}",
+                f"{agua_mmol.get('Zn', 0):.4f}", f"{agua_mmol.get('Cu', 0):.4f}",
+                f"{agua_mmol.get('B', 0):.4f}", f"{agua_mmol.get('Mo', 0):.4f}",
+                f"{agua_mmol_anion_sum:.3f}", '']
 
         # Row 6: Iones en Agua (meq/L)
-        agua_meq_anion_sum = sum(agua_meq.get(elem, 0)
-                                 for elem in anion_elements)
+        agua_meq_anion_sum = sum(agua_meq.get(elem, 0) for elem in anion_elements)
         row6 = ['Iones en Agua (meq/L)', '', '', '', '', '', '',
                 f"{agua_meq.get('Ca', 0):.3f}", f"{agua_meq.get('K', 0):.3f}",
                 f"{agua_meq.get('Mg', 0):.3f}", f"{agua_meq.get('Na', 0):.3f}",
@@ -618,7 +723,12 @@ class ComprehensivePDFReportGenerator:
                 f"{agua_meq.get('N', 0):.3f}", f"{agua_meq.get('S', 0):.3f}",
                 f"{agua_meq.get('S', 0):.3f}", f"{agua_meq.get('Cl', 0):.3f}",
                 f"{agua_meq.get('P', 0):.3f}", f"{agua_meq.get('P', 0):.3f}",
-                f"{agua_meq.get('HCO3', 0):.3f}", f"{agua_meq_anion_sum:.3f}", '']
+                f"{agua_meq.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS
+                f"{agua_meq.get('Fe', 0):.4f}", f"{agua_meq.get('Mn', 0):.4f}",
+                f"{agua_meq.get('Zn', 0):.4f}", f"{agua_meq.get('Cu', 0):.4f}",
+                f"{agua_meq.get('B', 0):.4f}", f"{agua_meq.get('Mo', 0):.4f}",
+                f"{agua_meq_anion_sum:.3f}", '']
 
         # Row 7: Iones en SONU Final (mg/L)
         final_anion_sum = sum(final_mg.get(elem, 0) for elem in anion_elements)
@@ -629,11 +739,15 @@ class ComprehensivePDFReportGenerator:
                 f"{final_mg.get('N', 0):.1f}", f"{final_mg.get('S', 0):.1f}",
                 f"{final_mg.get('S', 0):.1f}", f"{final_mg.get('Cl', 0):.1f}",
                 f"{final_mg.get('P', 0):.1f}", f"{final_mg.get('P', 0):.1f}",
-                f"{final_mg.get('HCO3', 0):.1f}", f"{final_anion_sum:.1f}", f"{final_ec:.2f}"]
+                f"{final_mg.get('HCO3', 0):.1f}",
+                # MICRONUTRIENTS - FINAL VALUES
+                f"{final_mg.get('Fe', 0):.3f}", f"{final_mg.get('Mn', 0):.3f}",
+                f"{final_mg.get('Zn', 0):.3f}", f"{final_mg.get('Cu', 0):.3f}",
+                f"{final_mg.get('B', 0):.3f}", f"{final_mg.get('Mo', 0):.3f}",
+                f"{final_anion_sum:.1f}", f"{final_ec:.2f}"]
 
         # Row 8: Iones en SONU (mmol/L)
-        final_mmol_anion_sum = sum(final_mmol.get(elem, 0)
-                                   for elem in anion_elements)
+        final_mmol_anion_sum = sum(final_mmol.get(elem, 0) for elem in anion_elements)
         row8 = ['Iones en SONU (mmol/L)', '', '', '', '', '', '',
                 f"{final_mmol.get('Ca', 0):.3f}", f"{final_mmol.get('K', 0):.3f}",
                 f"{final_mmol.get('Mg', 0):.3f}", f"{final_mmol.get('Na', 0):.3f}",
@@ -641,11 +755,15 @@ class ComprehensivePDFReportGenerator:
                 f"{final_mmol.get('N', 0):.3f}", f"{final_mmol.get('S', 0):.3f}",
                 f"{final_mmol.get('S', 0):.3f}", f"{final_mmol.get('Cl', 0):.3f}",
                 f"{final_mmol.get('P', 0):.3f}", f"{final_mmol.get('P', 0):.3f}",
-                f"{final_mmol.get('HCO3', 0):.3f}", f"{final_mmol_anion_sum:.3f}", '']
+                f"{final_mmol.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS
+                f"{final_mmol.get('Fe', 0):.4f}", f"{final_mmol.get('Mn', 0):.4f}",
+                f"{final_mmol.get('Zn', 0):.4f}", f"{final_mmol.get('Cu', 0):.4f}",
+                f"{final_mmol.get('B', 0):.4f}", f"{final_mmol.get('Mo', 0):.4f}",
+                f"{final_mmol_anion_sum:.3f}", '']
 
         # Row 9: Iones en SONU (meq/L)
-        final_meq_anion_sum = sum(final_meq.get(elem, 0)
-                                  for elem in anion_elements)
+        final_meq_anion_sum = sum(final_meq.get(elem, 0) for elem in anion_elements)
         row9 = ['Iones en SONU (meq/L)', '', '', '', '', '', '',
                 f"{final_meq.get('Ca', 0):.3f}", f"{final_meq.get('K', 0):.3f}",
                 f"{final_meq.get('Mg', 0):.3f}", f"{final_meq.get('Na', 0):.3f}",
@@ -653,78 +771,125 @@ class ComprehensivePDFReportGenerator:
                 f"{final_meq.get('N', 0):.3f}", f"{final_meq.get('S', 0):.3f}",
                 f"{final_meq.get('S', 0):.3f}", f"{final_meq.get('Cl', 0):.3f}",
                 f"{final_meq.get('P', 0):.3f}", f"{final_meq.get('P', 0):.3f}",
-                f"{final_meq.get('HCO3', 0):.3f}", f"{final_meq_anion_sum:.3f}", '']
+                f"{final_meq.get('HCO3', 0):.3f}",
+                # MICRONUTRIENTS
+                f"{final_meq.get('Fe', 0):.4f}", f"{final_meq.get('Mn', 0):.4f}",
+                f"{final_meq.get('Zn', 0):.4f}", f"{final_meq.get('Cu', 0):.4f}",
+                f"{final_meq.get('B', 0):.4f}", f"{final_meq.get('Mo', 0):.4f}",
+                f"{final_meq_anion_sum:.3f}", '']
 
-        summary_rows.extend(
-            [row1, row2, row3, row4, row5, row6, row7, row8, row9])
+        summary_rows.extend([row1, row2, row3, row4, row5, row6, row7, row8, row9])
         return summary_rows
 
-    def _create_summary_tables(self, calculation_data: Dict[str, Any]) -> List:
-        """Create additional summary and analysis tables"""
+    def _create_enhanced_summary_tables(self, calculation_data: Dict[str, Any]) -> List:
+        """Create enhanced summary and analysis tables with micronutrient support"""
         if not REPORTLAB_AVAILABLE:
             return []
 
         elements = []
         calc_results = calculation_data.get('calculation_results', {})
 
-        # Verification Results Table
+        # Enhanced Verification Results Table including micronutrients
         verification_results = calc_results.get('verification_results', [])
         if verification_results:
             elements.append(Spacer(1, 20))
-            elements.append(Paragraph("<b>RESULTADOS DE VERIFICACIÓN NUTRICIONAL</b>",
+            elements.append(Paragraph("<b>RESULTADOS DE VERIFICACIÓN NUTRICIONAL COMPLETA</b>",
                                       ParagraphStyle('SectionTitle', parent=self.styles['Heading2'],
                                                      fontSize=14, textColor=colors.darkblue)))
             elements.append(Spacer(1, 10))
 
             verification_data = [
-                ['Parámetro', 'Objetivo (mg/L)', 'Actual (mg/L)', 'Desviación (%)', 'Estado']]
+                ['Parámetro', 'Objetivo (mg/L)', 'Actual (mg/L)', 'Desviación (%)', 'Estado', 'Tipo']]
 
+            # Separate macro and micronutrients in verification
+            macro_results = []
+            micro_results = []
+            
             for result in verification_results:
+                parameter = result.get('parameter', '')
+                if parameter in self.micro_elements:
+                    micro_results.append(result)
+                else:
+                    macro_results.append(result)
+
+            # Add macronutrients first
+            for result in macro_results:
+                status = result.get('status', '')
+                status_color = self._get_status_color(status)
+                
                 verification_data.append([
                     result.get('parameter', ''),
                     f"{result.get('target_value', 0):.1f}",
                     f"{result.get('actual_value', 0):.1f}",
                     f"{result.get('percentage_deviation', 0):+.1f}%",
-                    result.get('status', '')
+                    status,
+                    'Macro'
+                ])
+
+            # Add micronutrients
+            for result in micro_results:
+                status = result.get('status', '')
+                
+                verification_data.append([
+                    result.get('parameter', ''),
+                    f"{result.get('target_value', 0):.3f}",  # More precision for micros
+                    f"{result.get('actual_value', 0):.3f}",
+                    f"{result.get('percentage_deviation', 0):+.1f}%",
+                    status,
+                    'Micro'
                 ])
 
             verification_table = Table(verification_data, colWidths=[
-                                       1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-            verification_table.setStyle(TableStyle([
+                                       1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch, 0.8*inch])
+            
+            # Enhanced styling with micronutrient differentiation
+            table_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-                 [colors.white, colors.lightgrey]),
-            ]))
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]
+            
+            # Color-code micronutrient rows
+            for i, result in enumerate(verification_results, 1):
+                parameter = result.get('parameter', '')
+                if parameter in self.micro_elements:
+                    table_style.append(('BACKGROUND', (5, i), (5, i), colors.orange))
+                    table_style.append(('TEXTCOLOR', (5, i), (5, i), colors.white))
+                    table_style.append(('FONTNAME', (5, i), (5, i), 'Helvetica-Bold'))
+                else:
+                    table_style.append(('BACKGROUND', (5, i), (5, i), colors.lightblue))
 
+            verification_table.setStyle(TableStyle(table_style))
             elements.append(verification_table)
 
-        # Ionic Balance Analysis
+        # Enhanced Ionic Balance Analysis
         ionic_balance = calc_results.get('ionic_balance', {})
         if ionic_balance:
             elements.append(Spacer(1, 20))
-            elements.append(Paragraph("<b>ANÁLISIS DE BALANCE IÓNICO</b>",
+            elements.append(Paragraph("<b>ANÁLISIS DE BALANCE IÓNICO MEJORADO</b>",
                                       ParagraphStyle('SectionTitle', parent=self.styles['Heading2'],
                                                      fontSize=14, textColor=colors.darkblue)))
             elements.append(Spacer(1, 10))
 
             balance_data = [
-                ['Parámetro', 'Valor', 'Unidad'],
+                ['Parámetro', 'Valor', 'Unidad', 'Estado'],
                 ['Suma de Cationes',
-                    f"{ionic_balance.get('cation_sum', 0):.2f}", 'meq/L'],
+                    f"{ionic_balance.get('cation_sum', 0):.2f}", 'meq/L', 
+                    ionic_balance.get('balance_status', 'Unknown')],
                 ['Suma de Aniones',
-                    f"{ionic_balance.get('anion_sum', 0):.2f}", 'meq/L'],
-                ['Diferencia',
-                    f"{ionic_balance.get('difference', 0):.2f}", 'meq/L']
+                    f"{ionic_balance.get('anion_sum', 0):.2f}", 'meq/L', ''],
+                ['Diferencia Absoluta',
+                    f"{ionic_balance.get('difference', 0):.2f}", 'meq/L', ''],
+                ['Error de Balance',
+                    f"{ionic_balance.get('difference_percentage', 0):.1f}", '%', '']
             ]
 
-            balance_table = Table(balance_data, colWidths=[
-                                  2.5*inch, 1.5*inch, 1*inch])
+            balance_table = Table(balance_data, colWidths=[2.5*inch, 1.5*inch, 1*inch, 1.5*inch])
             balance_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -733,59 +898,594 @@ class ComprehensivePDFReportGenerator:
                 ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-                 [colors.white, colors.lightgrey]),
-                ('TEXTCOLOR', (1, -1), (1, -1),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+                ('TEXTCOLOR', (3, 1), (3, 1),
                  colors.green if ionic_balance.get('is_balanced') == 1 else colors.red),
-                ('FONTNAME', (1, -1), (1, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (3, 1), (3, 1), 'Helvetica-Bold'),
             ]))
 
             elements.append(balance_table)
 
-        # Cost Analysis Table
+        # Enhanced Cost Analysis with micronutrient breakdown
         cost_analysis = calc_results.get('cost_analysis', {})
         if cost_analysis and cost_analysis.get('cost_per_fertilizer'):
             elements.append(Spacer(1, 20))
-            elements.append(Paragraph("<b>ANÁLISIS ECONÓMICO</b>",
+            elements.append(Paragraph("<b>ANÁLISIS ECONÓMICO DETALLADO</b>",
                                       ParagraphStyle('SectionTitle', parent=self.styles['Heading2'],
                                                      fontSize=14, textColor=colors.darkblue)))
             elements.append(Spacer(1, 10))
 
             cost_data = [
-                ['Fertilizante', 'Costo por 1000L ($)', 'Porcentaje del Total (%)']]
+                ['Fertilizante', 'Costo por 1000L ($)', 'Porcentaje (%)', 'Tipo', 'Dosificación (g/L)']]
 
             cost_per_fert = cost_analysis.get('cost_per_fertilizer', {})
-            percentage_per_fert = cost_analysis.get(
-                'percentage_per_fertilizer', {})
+            percentage_per_fert = cost_analysis.get('percentage_per_fertilizer', {})
+            fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
 
+            # Separate costs by type
+            macro_costs = []
+            micro_costs = []
+            
             for fert, cost in cost_per_fert.items():
                 if cost > 0:
                     percentage = percentage_per_fert.get(fert, 0)
-                    cost_data.append([
-                        fert,
-                        f"${cost:.3f}",
-                        f"{percentage:.1f}%"
-                    ])
+                    dosage_info = fertilizer_dosages.get(fert, {})
+                    dosage_g_l = self._extract_dosage_value(dosage_info)
+                    
+                    is_micro_fert = any(micro in fert.lower() 
+                                      for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
+                    
+                    fert_type = 'Micronutriente' if is_micro_fert else 'Macronutriente'
+                    
+                    cost_row = [fert, f"${cost:.3f}", f"{percentage:.1f}%", fert_type, f"{dosage_g_l:.4f}"]
+                    
+                    if is_micro_fert:
+                        micro_costs.append(cost_row)
+                    else:
+                        macro_costs.append(cost_row)
 
-            # Add total row
+            # Add macro costs first, then micro costs
+            for cost_row in macro_costs:
+                cost_data.append(cost_row)
+            for cost_row in micro_costs:
+                cost_data.append(cost_row)
+
+            # Add totals
             total_cost = cost_analysis.get('total_cost_diluted', 0)
-            cost_data.append(['TOTAL', f"${total_cost:.2f}", '100.0%'])
+            macro_total = sum(cost for fert, cost in cost_per_fert.items() 
+                            if not any(micro in fert.lower() for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato']))
+            micro_total = total_cost - macro_total
+            
+            cost_data.append(['SUBTOTAL MACRONUTRIENTES', f"${macro_total:.3f}", f"{macro_total/total_cost*100:.1f}%", 'Subtotal', ''])
+            cost_data.append(['SUBTOTAL MICRONUTRIENTES', f"${micro_total:.3f}", f"{micro_total/total_cost*100:.1f}%", 'Subtotal', ''])
+            cost_data.append(['TOTAL GENERAL', f"${total_cost:.2f}", '100.0%', 'Total', ''])
 
-            cost_table = Table(cost_data, colWidths=[3*inch, 2*inch, 2*inch])
-            cost_table.setStyle(TableStyle([
+            cost_table = Table(cost_data, colWidths=[2.5*inch, 1.5*inch, 1.2*inch, 1.5*inch, 1.2*inch])
+            
+            # Enhanced cost table styling
+            cost_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.lightyellow),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTNAME', (0, 1), (-1, -4), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -2),
-                 [colors.white, colors.lightgrey]),
-            ]))
+                ('ROWBACKGROUNDS', (0, 1), (-1, -4), [colors.white, colors.lightgrey]),
+                
+                # Subtotal rows
+                ('BACKGROUND', (0, -3), (-1, -2), colors.lightyellow),
+                ('FONTNAME', (0, -3), (-1, -2), 'Helvetica-Bold'),
+                
+                # Total row
+                ('BACKGROUND', (0, -1), (-1, -1), colors.darkgreen),
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ]
+            
+            # Color-code micronutrient rows
+            row_index = 1
+            for fert, cost in cost_per_fert.items():
+                if cost > 0:
+                    is_micro_fert = any(micro in fert.lower() 
+                                      for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
+                    if is_micro_fert:
+                        cost_style.append(('BACKGROUND', (3, row_index), (3, row_index), colors.orange))
+                        cost_style.append(('TEXTCOLOR', (3, row_index), (3, row_index), colors.white))
+                        cost_style.append(('FONTNAME', (3, row_index), (3, row_index), 'Helvetica-Bold'))
+                    row_index += 1
 
+            cost_table.setStyle(TableStyle(cost_style))
             elements.append(cost_table)
 
         return elements
+
+    def _get_enhanced_fertilizer_database(self) -> Dict:
+        """Get the enhanced fertilizer database"""
+        try:
+            fertilizer_db = EnhancedFertilizerDatabase()
+            return fertilizer_db.fertilizer_data
+        except Exception as e:
+            print(f"WARNING: Could not load fertilizer database: {e}")
+            return {}
+
+    def _find_enhanced_composition(self, fert_name: str, fertilizer_db: Dict) -> Optional[Dict]:
+        """Find enhanced fertilizer composition in database"""
+        try:
+            # Use the proper database method to find fertilizer composition
+            enhanced_db = EnhancedFertilizerDatabase()
+            composition_data = enhanced_db.find_fertilizer_composition(fert_name, "")
+            
+            if composition_data:
+                print(f"        Found composition for {fert_name}: {composition_data['formula']}")
+                return composition_data
+            
+            print(f"        No composition found for: {fert_name}")
+            return None
+            
+        except Exception as e:
+            print(f"        Error finding composition for {fert_name}: {e}")
+            return None
+
+    def _get_main_elements(self, cations: Dict, anions: Dict) -> List:
+        """Get main elements with their molecular weights"""
+        elements = []
+        
+        # Add significant cations (>0)
+        for elem, weight in cations.items():
+            if weight > 0:
+                elements.append((elem, weight))
+        
+        # Add significant anions (>0)
+        for elem, weight in anions.items():
+            if weight > 0:
+                elements.append((elem, weight))
+        
+        # Sort by weight (descending) and return top 2
+        elements.sort(key=lambda x: x[1], reverse=True)
+        return elements[:2]
+
+    def _calculate_contribution(self, dosage_mg_l: float, element_fraction: float, purity: float) -> float:
+        """Calculate nutrient contribution from fertilizer"""
+        return dosage_mg_l * element_fraction * purity / 100.0
+
+    def _calculate_anion_sum(self, dosage_mg_l: float, anions: Dict, purity: float) -> float:
+        """Calculate sum of anion contributions"""
+        anion_sum = 0.0
+        for elem, fraction in anions.items():
+            anion_sum += self._calculate_contribution(dosage_mg_l, fraction, purity)
+        return anion_sum
+
+    def _get_main_micronutrient_contribution(self, fert_name: str, dosage_g_l: float) -> tuple:
+        """Get main micronutrient and its contribution from fertilizer name"""
+        micro_map = {
+            'hierro': ('Fe', dosage_g_l * 0.2),  # Typical Fe content
+            'iron': ('Fe', dosage_g_l * 0.2),
+            'manganeso': ('Mn', dosage_g_l * 0.3),
+            'zinc': ('Zn', dosage_g_l * 0.25),
+            'cobre': ('Cu', dosage_g_l * 0.25),
+            'copper': ('Cu', dosage_g_l * 0.25),
+            'borico': ('B', dosage_g_l * 0.17),
+            'molibdato': ('Mo', dosage_g_l * 0.4)
+        }
+        
+        fert_lower = fert_name.lower()
+        for keyword, (element, contribution) in micro_map.items():
+            if keyword in fert_lower:
+                return element, contribution
+        
+        return 'Unknown', 0.0
+
+    def _extract_dosage_value(self, dosage_info) -> float:
+        """ENHANCED: Extract dosage value from dosage_info with detailed debugging"""
+        print(f"      Extracting dosage from: dosage_ml_per_L={getattr(dosage_info, 'dosage_ml_per_L', 'N/A')} dosage_g_per_L={getattr(dosage_info, 'dosage_g_per_L', 'N/A')} (type: {type(dosage_info)})")
+        
+        # Handle Pydantic model objects - prioritize dosage_g_per_L
+        if hasattr(dosage_info, 'dosage_g_per_L'):
+            try:
+                value = getattr(dosage_info, 'dosage_g_per_L')
+                if value is not None and value != 0:
+                    result = float(value)
+                    print(f"        Found dosage_g_per_L: {result}")
+                    return result
+            except (ValueError, TypeError) as e:
+                print(f"        dosage_g_per_L conversion failed: {e}")
+        
+        # Try dosage_ml_per_L as backup
+        if hasattr(dosage_info, 'dosage_ml_per_L'):
+            try:
+                value = getattr(dosage_info, 'dosage_ml_per_L')
+                if value is not None and value != 0:
+                    result = float(value)
+                    print(f"        Found dosage_ml_per_L: {result}")
+                    return result
+            except (ValueError, TypeError) as e:
+                print(f"        dosage_ml_per_L conversion failed: {e}")
+        
+        if isinstance(dosage_info, dict):
+            # Try different possible keys with debugging
+            possible_keys = ['dosage_g_per_L', 'dosage_g_L', 'dosage', 'dosage_ml_per_L']
+            
+            for key in possible_keys:
+                if key in dosage_info:
+                    value = dosage_info[key]
+                    print(f"        Found key '{key}': {value}")
+                    try:
+                        result = float(value)
+                        print(f"        Converted to float: {result}")
+                        return result
+                    except (ValueError, TypeError) as e:
+                        print(f"        Conversion failed: {e}")
+                        continue
+            
+            # If no standard keys found, try first numeric value
+            for key, value in dosage_info.items():
+                print(f"        Trying key '{key}': {value}")
+                try:
+                    result = float(value)
+                    print(f"        Successfully converted: {result}")
+                    return result
+                except (ValueError, TypeError):
+                    continue
+                    
+            print(f"        No numeric values found in dict")
+            return 0.0
+            
+        else:
+            # Assume it's already a numeric value
+            try:
+                result = float(dosage_info)
+                print(f"        Direct conversion: {result}")
+                return result
+            except (ValueError, TypeError):
+                print(f"        Direct conversion failed")
+                return 0.0
+            
+    def _get_status_color(self, status: str):
+        """Get color based on nutrient status"""
+        if REPORTLAB_AVAILABLE:
+            status_lower = status.lower()
+            if 'adequate' in status_lower or 'optimal' in status_lower or 'good' in status_lower:
+                return colors.green
+            elif 'deficient' in status_lower or 'low' in status_lower or 'insufficient' in status_lower:
+                return colors.red
+            elif 'excessive' in status_lower or 'high' in status_lower or 'excess' in status_lower:
+                return colors.orange
+            elif 'warning' in status_lower or 'caution' in status_lower:
+                return colors.yellow
+            else:
+                return colors.black
+        else:
+            return None
+
+    def generate_comprehensive_pdf(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
+        """Alias for generate_enhanced_pdf for backward compatibility"""
+        return self.generate_enhanced_pdf(calculation_data, filename)
+
+    def debug_calculation_data(calculation_data: Dict[str, Any]) -> None:
+        """Debug function to analyze calculation data structure"""
+        print(f"\n=== CALCULATION DATA DEBUG ===")
+        
+        calc_results = calculation_data.get('calculation_results', {})
+        print(f"Calculation results keys: {list(calc_results.keys())}")
+        
+        fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
+        print(f"Fertilizer dosages: {len(fertilizer_dosages)} entries")
+        
+        if fertilizer_dosages:
+            print(f"Sample fertilizer dosage structure:")
+            first_key = list(fertilizer_dosages.keys())[0]
+            first_value = fertilizer_dosages[first_key]
+            print(f"  Key: {first_key}")
+            print(f"  Value: {first_value} (type: {type(first_value)})")
+            
+            if isinstance(first_value, dict):
+                print(f"  Dict keys: {list(first_value.keys())}")
+                for k, v in first_value.items():
+                    print(f"    {k}: {v} (type: {type(v)})")
+        
+        print(f"=== END CALCULATION DATA DEBUG ===\n")
+        
+    def _create_enhanced_fertilizer_row_with_marking(self, fert_name: str, dosage_info, fertilizer_db: Dict) -> List:
+        """
+        Enhanced fertilizer row creation with special marking for required fertilizers
+        """
+        dosage_g_l = self._extract_dosage_value(dosage_info)
+        
+        # Check if this is a required fertilizer
+        is_required_fertilizer = '[Fertilizante Requerido]' in fert_name
+        
+        print(f"      Creating enhanced row for {fert_name}: {dosage_g_l:.4f} g/L" + 
+            (" [REQUIRED]" if is_required_fertilizer else ""))
+
+        # Get enhanced composition from database
+        # Remove the required marker for composition lookup
+        clean_name = fert_name.replace(' [Fertilizante Requerido]', '')
+        composition_data = self._find_enhanced_composition(clean_name, fertilizer_db)
+        
+        if composition_data:
+            molecular_weight = composition_data['mw']
+            cations = composition_data['cations']
+            anions = composition_data['anions']
+            print(f"        Found enhanced composition: {composition_data['formula']}")
+        else:
+            # Default composition
+            molecular_weight = 100
+            cations = {elem: 0 for elem in ['Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu']}
+            anions = {elem: 0 for elem in ['N', 'S', 'Cl', 'P', 'HCO3', 'B', 'Mo']}
+            print(f"        Using default composition")
+
+        dosage_mg_l = dosage_g_l * 1000
+        dosage_mmol_l = dosage_mg_l / molecular_weight if molecular_weight > 0 else 0
+
+        # Get main elements for molecular weight display
+        main_elements = self._get_main_elements(cations, anions)
+        elem1_weight = main_elements[0][1] if len(main_elements) > 0 else 0
+        elem2_weight = main_elements[1][1] if len(main_elements) > 1 else 0
+
+        # Calculate nutrient contributions (including micronutrients)
+        purity_factor = 98.0 / 100.0
+        
+        # Special formatting for required fertilizers
+        display_name = fert_name
+        if is_required_fertilizer:
+            # Add special marker for required fertilizers
+            display_name = f"🧪 {clean_name} [REQ]"
+        
+        # Enhanced row with ALL elements including micronutrients
+        row = [
+            display_name,                                   # FERTILIZANTE (with special marking)
+            "98.0",                                         # % P (purity)
+            f"{molecular_weight:.1f}",                      # Peso molecular (Sal)
+            f"{elem1_weight:.1f}",                          # Peso molecular (Elem1)
+            f"{elem2_weight:.1f}",                          # Peso molecular (Elem2)
+            f"{dosage_g_l:.4f}",                           # Peso de sal (g/L) - enhanced precision
+            f"{dosage_mmol_l:.4f}",                        # Peso de sal (mmol/L)
+            
+            # Macronutrient contributions
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Ca', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('K', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mg', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Na', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('NH4', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('Cl', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('HCO3', 0), purity_factor):.1f}",
+            
+            # MICRONUTRIENT CONTRIBUTIONS (Enhanced precision for required fertilizers)
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Fe', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mn', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Zn', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, cations.get('Cu', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('B', 0), purity_factor):.3f}",
+            f"{self._calculate_contribution(dosage_mg_l, anions.get('Mo', 0), purity_factor):.3f}",
+            
+            # Summary columns
+            f"{self._calculate_anion_sum(dosage_mg_l, anions, purity_factor):.1f}",
+            f"{dosage_mmol_l * 0.1:.3f}"                   # CE contribution
+        ]
+
+        return row
+
+    def _apply_required_fertilizer_styling(self, table: object, fertilizer_dosages: Dict, fertilizer_rows_added: int) -> None:
+        """
+        Apply special styling to required fertilizer rows in the PDF table
+        """
+        if not REPORTLAB_AVAILABLE:
+            return
+        
+        # Count required fertilizers and apply styling
+        row_index = 1  # Start after header row
+        required_fertilizer_rows = []
+        
+        for fert_name, dosage_info in fertilizer_dosages.items():
+            dosage_g_l = self._extract_dosage_value(dosage_info)
+            
+            if dosage_g_l > 0:  # Active fertilizer
+                is_required = '[Fertilizante Requerido]' in fert_name
+                
+                if is_required:
+                    required_fertilizer_rows.append(row_index)
+                    print(f"      Marking row {row_index} as required fertilizer: {fert_name}")
+                
+                row_index += 1
+        
+        # Apply special styling to required fertilizer rows
+        additional_styles = []
+        
+        for req_row in required_fertilizer_rows:
+            # Highlight entire row with special background
+            additional_styles.extend([
+                ('BACKGROUND', (0, req_row), (-1, req_row), colors.lightcyan),
+                ('TEXTCOLOR', (0, req_row), (0, req_row), colors.darkblue),
+                ('FONTNAME', (0, req_row), (0, req_row), 'Helvetica-Bold'),
+                
+                # Special highlighting for micronutrient columns (Fe, Mn, Zn, Cu, B, Mo)
+                ('BACKGROUND', (20, req_row), (25, req_row), colors.lightyellow),  # Micronutrient columns
+                ('TEXTCOLOR', (20, req_row), (25, req_row), colors.darkred),
+                ('FONTNAME', (20, req_row), (25, req_row), 'Helvetica-Bold'),
+            ])
+        
+        # Apply additional styles to the table
+        for style_command in additional_styles:
+            table.setStyle(TableStyle([style_command]))
+        
+        print(f"      Applied special styling to {len(required_fertilizer_rows)} required fertilizer rows")
+
+    def _create_required_fertilizers_legend(self) -> List:
+        """
+        Create a legend explaining the required fertilizer notation
+        """
+        if not REPORTLAB_AVAILABLE:
+            return []
+        
+        elements = []
+        
+        legend_title = Paragraph(
+            "<b>LEYENDA DE FERTILIZANTES</b>",
+            ParagraphStyle('LegendTitle', parent=self.styles['Heading3'],
+                        fontSize=12, textColor=colors.darkblue, spaceAfter=10)
+        )
+        elements.append(legend_title)
+        
+        legend_data = [
+            ['Símbolo', 'Significado', 'Descripción'],
+            ['🧪 [REQ]', 'Fertilizante Requerido', 'Agregado automáticamente para completar micronutrientes'],
+            ['📋 Normal', 'Fertilizante del Catálogo API', 'Obtenido del catálogo principal del sistema'],
+            ['Fondo Celeste', 'Fila de Fertilizante Requerido', 'Indica suplementación automática de micronutrientes'],
+            ['Texto Azul/Rojo', 'Columnas de Micronutrientes', 'Valores de Fe, Mn, Zn, Cu, B, Mo resaltados']
+        ]
+        
+        legend_table = Table(legend_data, colWidths=[1.5*inch, 2.5*inch, 3.5*inch])
+        legend_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            
+            # Special styling for required fertilizer example
+            ('BACKGROUND', (0, 1), (-1, 1), colors.lightcyan),
+            ('TEXTCOLOR', (0, 1), (0, 1), colors.darkblue),
+            ('FONTNAME', (0, 1), (0, 1), 'Helvetica-Bold'),
+        ]))
+        
+        elements.append(legend_table)
+        elements.append(Spacer(1, 15))
+        
+        # Add note about micronutrient supplementation
+        note_text = """
+        <b>NOTA IMPORTANTE:</b> Los fertilizantes marcados como [Fertilizante Requerido] son agregados 
+        automáticamente por el sistema cuando el catálogo de la API no contiene fuentes suficientes 
+        de micronutrientes para alcanzar los objetivos nutricionales. Estos fertilizantes están 
+        basados en las mejores prácticas de nutrición hidropónica y utilizan fuentes estándar 
+        de la industria.
+        """
+        
+        note_paragraph = Paragraph(
+            note_text,
+            ParagraphStyle('Note', parent=self.styles['Normal'],
+                        fontSize=9, textColor=colors.darkgreen,
+                        leftIndent=20, rightIndent=20, spaceAfter=15)
+        )
+        elements.append(note_paragraph)
+        
+        return elements
+
+    def _create_micronutrient_supplementation_summary(self, calculation_data: Dict[str, Any]) -> List:
+        """
+        Create summary of micronutrient supplementation performed
+        """
+        if not REPORTLAB_AVAILABLE:
+            return []
+        
+        elements = []
+        
+        # Extract supplementation info
+        integration_metadata = calculation_data.get('integration_metadata', {})
+        micronutrients_added = integration_metadata.get('micronutrients_added', 0)
+        
+        if micronutrients_added == 0:
+            return elements  # No supplementation performed
+        
+        summary_title = Paragraph(
+            "<b>RESUMEN DE SUPLEMENTACIÓN AUTOMÁTICA DE MICRONUTRIENTES</b>",
+            ParagraphStyle('SupplementTitle', parent=self.styles['Heading3'],
+                        fontSize=12, textColor=colors.darkorange, spaceAfter=15)
+        )
+        elements.append(summary_title)
+        
+        # Supplementation statistics
+        calc_results = calculation_data.get('calculation_results', {})
+        fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
+        
+        # Count and list required fertilizers
+        required_fertilizers = []
+        for fert_name, dosage_info in fertilizer_dosages.items():
+            if '[Fertilizante Requerido]' in fert_name:
+                dosage_g_l = self._extract_dosage_value(dosage_info)
+                if dosage_g_l > 0:
+                    clean_name = fert_name.replace(' [Fertilizante Requerido]', '')
+                    micronutrient = self._identify_primary_micronutrient(clean_name)
+                    required_fertilizers.append({
+                        'name': clean_name,
+                        'micronutrient': micronutrient,
+                        'dosage': dosage_g_l
+                    })
+        
+        if required_fertilizers:
+            summary_data = [
+                ['Fertilizante Requerido', 'Micronutriente Principal', 'Dosificación (g/L)', 'Propósito']
+            ]
+            
+            for fert in required_fertilizers:
+                purpose = self._get_micronutrient_purpose(fert['micronutrient'])
+                summary_data.append([
+                    fert['name'],
+                    fert['micronutrient'],
+                    f"{fert['dosage']:.4f}",
+                    purpose
+                ])
+            
+            summary_table = Table(summary_data, colWidths=[2.5*inch, 1.2*inch, 1.2*inch, 2.5*inch])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkorange),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.lightcyan, colors.white]),
+            ]))
+            
+            elements.append(summary_table)
+            elements.append(Spacer(1, 15))
+        
+        return elements
+
+    def _identify_primary_micronutrient(self, fertilizer_name: str) -> str:
+        """Identify the primary micronutrient from fertilizer name"""
+        name_lower = fertilizer_name.lower()
+        
+        micronutrient_map = {
+            'hierro': 'Fe',
+            'iron': 'Fe',
+            'fe-edta': 'Fe',
+            'manganeso': 'Mn', 
+            'manganese': 'Mn',
+            'zinc': 'Zn',
+            'cobre': 'Cu',
+            'copper': 'Cu',
+            'borico': 'B',
+            'boric': 'B',
+            'molibdato': 'Mo',
+            'molybdate': 'Mo'
+        }
+        
+        for keyword, micro in micronutrient_map.items():
+            if keyword in name_lower:
+                return micro
+        
+        return 'Unknown'
+
+    def _get_micronutrient_purpose(self, micronutrient: str) -> str:
+        """Get the biological purpose of each micronutrient"""
+        purposes = {
+            'Fe': 'Fotosíntesis y transporte de electrones',
+            'Mn': 'Activación enzimática y fotosíntesis',
+            'Zn': 'Síntesis de proteínas y hormonas',
+            'Cu': 'Transporte de electrones y lignificación',
+            'B': 'Formación de paredes celulares',
+            'Mo': 'Fijación de nitrógeno y metabolismo'
+        }
+        
+        return purposes.get(micronutrient, 'Función metabólica esencial')

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(taskkill:*)",
+      "Bash(\"taskkill\" \"/F\" \"/PID\" \"12496\")",
+      "Bash(powershell:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": []
+  }
+}

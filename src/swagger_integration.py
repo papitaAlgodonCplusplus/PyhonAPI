@@ -8,7 +8,7 @@ import aiohttp
 import asyncio
 from typing import Dict, List, Optional, Any
 from models import Fertilizer, FertilizerComposition, FertilizerChemistry
-from fertilizer_database import FertilizerDatabase
+from fertilizer_database import EnhancedFertilizerDatabase
 
 class SwaggerAPIClient:
     """Complete Swagger API client with real authentication and data fetching"""
@@ -17,7 +17,7 @@ class SwaggerAPIClient:
         self.base_url = base_url.rstrip('/')
         self.auth_token = None
         self.headers = {'Content-Type': 'application/json'}
-        self.fertilizer_db = FertilizerDatabase()
+        self.fertilizer_db = EnhancedFertilizerDatabase()
         self.session = None
         
     async def __aenter__(self):
@@ -32,7 +32,7 @@ class SwaggerAPIClient:
         """
         Real login implementation with proper authentication
         """
-        print(f"🔐 Authenticating with {self.base_url}...")
+        print(f"[AUTH] Authenticating with {self.base_url}...")
         
         url = f"{self.base_url}/Authentication/Login"
         login_data = {
@@ -55,9 +55,9 @@ class SwaggerAPIClient:
                             self.auth_token = data['result']['token']
                             self.headers['Authorization'] = f'Bearer {self.auth_token}'
                             
-                            print(f"✅ Authentication successful!")
-                            print(f"📋 User: {data['result'].get('userName', 'Unknown')}")
-                            print(f"🏢 Company: {data['result'].get('companyName', 'Unknown')}")
+                            print(f"[SUCCESS] Authentication successful!")
+                            print(f"[USER] User: {data['result'].get('userName', 'Unknown')}")
+                            print(f"[COMPANY] Company: {data['result'].get('companyName', 'Unknown')}")
                             
                             return {
                                 'success': True,
@@ -66,24 +66,24 @@ class SwaggerAPIClient:
                             }
                         else:
                             error_msg = data.get('message', 'Authentication failed')
-                            print(f"❌ Login failed: {error_msg}")
+                            print(f"[ERROR] Login failed: {error_msg}")
                             raise Exception(f"Login failed: {error_msg}")
                             
                     except Exception as json_error:
-                        print(f"❌ JSON parsing error: {json_error}")
-                        print(f"Raw response: {response_text[:500]}")
-                        raise Exception(f"Authentication response parsing failed: {json_error}")
+                            print(f"[ERROR] JSON parsing error: {json_error}")
+                            print(f"Raw response: {response_text[:500]}")
+                            raise Exception(f"Authentication response parsing failed: {json_error}")
                         
                 else:
-                    print(f"❌ HTTP Error {response.status}")
+                    print(f"[ERROR] HTTP Error {response.status}")
                     print(f"Response: {response_text[:500]}")
                     raise Exception(f"Authentication failed: HTTP {response.status}")
                     
         except aiohttp.ClientError as e:
-            print(f"❌ Network error during authentication: {e}")
+            print(f"[ERROR] Network error during authentication: {e}")
             raise Exception(f"Network error: {e}")
         except Exception as e:
-            print(f"❌ Authentication error: {e}")
+            print(f"[ERROR] Authentication error: {e}")
             raise
 
     async def get_user_by_id(self, user_id: int) -> Dict[str, Any]:
@@ -91,7 +91,7 @@ class SwaggerAPIClient:
         if not self.auth_token:
             raise Exception("Authentication required - please login first")
 
-        print(f"👤 Fetching user info for ID: {user_id}...")
+        print(f"[USER] Fetching user info for ID: {user_id}...")
         
         url = f"{self.base_url}/User"
         
@@ -99,7 +99,7 @@ class SwaggerAPIClient:
             async with self.session.get(url, headers=self.headers, timeout=30) as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"✅ Fetched user list successfully: {len(data.get('result', {}).get('users', []))} users found")
+                    print(f"[SUCCESS] Fetched user list successfully: {len(data.get('result', {}).get('users', []))} users found")
                     print(f"Users data: {data.get('result', {}).get('users', [])[:5]}")  # Log first 5 users for debugging
                     if data.get('success') and data.get('result'):
                         users = data['result'].get('users', [])
@@ -107,7 +107,7 @@ class SwaggerAPIClient:
                         # Find user by ID
                         for user in users:
                             if user.get('clientId') == user_id:
-                                print(f"✅ Found user: {user.get('userEmail', 'N/A')}")
+                                print(f"[SUCCESS] Found user: {user.get('userEmail', 'N/A')}")
                                 return user
                         
                         raise Exception(f"User with ID {user_id} not found")
@@ -118,7 +118,7 @@ class SwaggerAPIClient:
                     raise Exception(f"HTTP Error {response.status}")
                     
         except Exception as e:
-            print(f"❌ Get user error: {e}")
+            print(f"[ERROR] Get user error: {e}")
             raise
     
     async def get_fertilizers(self, catalog_id: int, include_inactives: bool = False) -> List[Dict[str, Any]]:
@@ -128,7 +128,7 @@ class SwaggerAPIClient:
         if not self.auth_token:
             raise Exception("Authentication required - please login first")
 
-        print(f"🌱 Fetching fertilizers from catalog {catalog_id}...")
+        print(f"[FETCH] Fetching fertilizers from catalog {catalog_id}...")
         
         url = f"{self.base_url}/Fertilizer"
         params = {
@@ -142,7 +142,7 @@ class SwaggerAPIClient:
                     data = await response.json()
                     fertilizers = data.get('result', {}).get('fertilizers', [])
                     
-                    print(f"✅ Found {len(fertilizers)} fertilizers")
+                    print(f"[SUCCESS] Found {len(fertilizers)} fertilizers")
                     
                     # Log first few fertilizer names for verification
                     for i, fert in enumerate(fertilizers[:5]):
@@ -154,16 +154,16 @@ class SwaggerAPIClient:
                     return fertilizers
                     
                 elif response.status == 401:
-                    print(f"❌ Authentication failed - token may have expired")
+                    print(f"[ERROR] Authentication failed - token may have expired")
                     raise Exception("Authentication failed - token may have expired")
                     
                 else:
                     error_text = await response.text()
-                    print(f"❌ HTTP {response.status}: {error_text[:300]}")
+                    print(f"[ERROR] HTTP {response.status}: {error_text[:300]}")
                     raise Exception(f"Failed to fetch fertilizers: HTTP {response.status}")
                     
         except aiohttp.ClientError as e:
-            print(f"❌ Network error fetching fertilizers: {e}")
+            print(f"[ERROR] Network error fetching fertilizers: {e}")
             raise Exception(f"Network error: {e}")
 
     async def get_fertilizer_chemistry(self, fertilizer_id: int, catalog_id: int) -> Optional[Dict[str, Any]]:
@@ -187,25 +187,25 @@ class SwaggerAPIClient:
                     
                     if chemistry_list:
                         chemistry = chemistry_list[0]
-                        print(f"    ✅ Chemistry data: {chemistry.get('formula', 'N/A')}")
+                        print(f"    [SUCCESS] Chemistry data: {chemistry.get('formula', 'N/A')}")
                         return chemistry
                     else:
-                        print(f"    ⚠️  No chemistry data found")
+                        print(f"    [WARNING]  No chemistry data found")
                         return None
                         
                 elif response.status == 404:
-                    print(f"    ⚠️  Chemistry not found for fertilizer {fertilizer_id}")
+                    print(f"    [WARNING]  Chemistry not found for fertilizer {fertilizer_id}")
                     return None
                     
                 else:
-                    print(f"    ⚠️  Chemistry fetch failed: HTTP {response.status}")
+                    print(f"    [WARNING]  Chemistry fetch failed: HTTP {response.status}")
                     return None
                     
         except aiohttp.ClientError as e:
-            print(f"    ⚠️  Network error fetching chemistry: {e}")
+            print(f"    [WARNING]  Network error fetching chemistry: {e}")
             return None
         except Exception as e:
-            print(f"    ⚠️  Error fetching chemistry: {e}")
+            print(f"    [WARNING]  Error fetching chemistry: {e}")
             return None
 
     async def get_crop_phase_requirements(self, phase_id: int) -> Optional[Dict[str, Any]]:
@@ -215,7 +215,7 @@ class SwaggerAPIClient:
         if not self.auth_token:
             raise Exception("Authentication required")
 
-        print(f"🌾 Fetching crop phase requirements for phase {phase_id}...")
+        print(f"[FETCH] Fetching crop phase requirements for phase {phase_id}...")
         
         url = f"{self.base_url}/CropPhaseSolutionRequirement/GetByPhaseId"
         params = {'PhaseId': phase_id}
@@ -227,23 +227,23 @@ class SwaggerAPIClient:
                     requirements = data.get('result', {}).get('cropPhaseSolutionRequirement')
                     
                     if requirements:
-                        print(f"✅ Found crop requirements")
+                        print(f"[SUCCESS] Found crop requirements")
                         # Log some key requirements
                         for key in ['n', 'p', 'k', 'ca', 'mg']:
                             if key in requirements:
                                 print(f"  {key.upper()}: {requirements[key]} mg/L")
                         return requirements
                     else:
-                        print(f"⚠️  No requirements found for phase {phase_id}")
+                        print(f"[WARNING]  No requirements found for phase {phase_id}")
                         return None
                         
                 else:
                     error_text = await response.text()
-                    print(f"⚠️  Requirements fetch failed: HTTP {response.status}")
+                    print(f"[WARNING]  Requirements fetch failed: HTTP {response.status}")
                     return None
                     
         except aiohttp.ClientError as e:
-            print(f"❌ Network error fetching requirements: {e}")
+            print(f"[ERROR] Network error fetching requirements: {e}")
             return None
 
     async def get_water_chemistry(self, water_id: int, catalog_id: int) -> Optional[Dict[str, Any]]:
@@ -253,7 +253,7 @@ class SwaggerAPIClient:
         if not self.auth_token:
             raise Exception("Authentication required")
 
-        print(f"💧 Fetching water chemistry for water {water_id}...")
+        print(f"[FETCH] Fetching water chemistry for water {water_id}...")
         
         url = f"{self.base_url}/WaterChemistry"
         params = {
@@ -269,23 +269,23 @@ class SwaggerAPIClient:
                     
                     if water_list:
                         water_data = water_list[0]
-                        print(f"✅ Found water analysis")
+                        print(f"[SUCCESS] Found water analysis")
                         # Log some key parameters
                         for key in ['ca', 'k', 'mg', 'nO3', 'sO4']:
                             if key in water_data:
                                 print(f"  {key}: {water_data[key]} mg/L")
                         return water_data
                     else:
-                        print(f"⚠️  No water analysis found for water {water_id}")
+                        print(f"[WARNING]  No water analysis found for water {water_id}")
                         return None
                         
                 else:
                     error_text = await response.text()
-                    print(f"⚠️  Water analysis fetch failed: HTTP {response.status}")
+                    print(f"[WARNING]  Water analysis fetch failed: HTTP {response.status}")
                     return None
                     
         except aiohttp.ClientError as e:
-            print(f"❌ Network error fetching water analysis: {e}")
+            print(f"[ERROR] Network error fetching water analysis: {e}")
             return None
 
     def map_swagger_fertilizer_to_model(self, swagger_fert: Dict[str, Any], chemistry: Optional[Dict[str, Any]] = None) -> Fertilizer:
@@ -293,7 +293,7 @@ class SwaggerAPIClient:
         Convert Swagger fertilizer data to our Fertilizer model with intelligent composition mapping
         """
         name = swagger_fert.get('name', 'Unknown')
-        print(f"    🔄 Mapping fertilizer: {name}")
+        print(f"    [PROCESS] Mapping fertilizer: {name}")
 
         # Get chemistry data or use defaults
         if chemistry is None:
@@ -323,7 +323,7 @@ class SwaggerAPIClient:
             cations = composition_data['cations'].copy()
             anions = composition_data['anions'].copy()
             molecular_weight = composition_data['mw']
-            print(f"      ✅ Found in database: {composition_data['formula']}")
+            print(f"      [SUCCESS] Found in database: {composition_data['formula']}")
             
             # Calculate total content for verification
             total_content = sum(cations.values()) + sum(anions.values())
@@ -340,7 +340,7 @@ class SwaggerAPIClient:
                 'B': 0.0, 'Mo': 0.0
             }
             molecular_weight = 100.0
-            print(f"      ⚠️  Not found in database, using defaults")
+            print(f"      [WARNING]  Not found in database, using defaults")
 
         # Validate and clean values
         if molecular_weight <= 0:
@@ -383,7 +383,7 @@ class SwaggerAPIClient:
         if main_nutrients:
             print(f"      Main nutrients: {', '.join(main_nutrients)}")
         else:
-            print(f"      ⚠️  No significant nutrients found")
+            print(f"      [WARNING]  No significant nutrients found")
 
         return fertilizer
 
@@ -391,7 +391,7 @@ class SwaggerAPIClient:
         """
         Map Swagger crop requirements to our target concentrations format
         """
-        print(f"🎯 Mapping crop requirements...")
+        print(f"[MAPPING] Mapping crop requirements...")
         
         # Mapping from Swagger API field names to our element names
         element_mapping = {
@@ -429,9 +429,9 @@ class SwaggerAPIClient:
                     print(f"  {our_field}: {value} mg/L")
 
         if not targets:
-            print(f"  ⚠️  No valid requirements found, will use defaults")
+            print(f"  [WARNING]  No valid requirements found, will use defaults")
         else:
-            print(f"  ✅ Mapped {len(targets)} target concentrations")
+            print(f"  [SUCCESS] Mapped {len(targets)} target concentrations")
 
         return targets
 
@@ -439,7 +439,7 @@ class SwaggerAPIClient:
         """
         Map Swagger water data to our water analysis format
         """
-        print(f"💧 Mapping water analysis...")
+        print(f"[FETCH] Mapping water analysis...")
         
         # Mapping from Swagger API field names to our element names
         element_mapping = {
@@ -474,9 +474,9 @@ class SwaggerAPIClient:
                     print(f"  {our_field}: {value} mg/L")
 
         if not analysis:
-            print(f"  ⚠️  No valid water analysis found, will use defaults")
+            print(f"  [WARNING]  No valid water analysis found, will use defaults")
         else:
-            print(f"  ✅ Mapped {len(analysis)} water parameters")
+            print(f"  [SUCCESS] Mapped {len(analysis)} water parameters")
 
         return analysis
 
@@ -484,7 +484,7 @@ class SwaggerAPIClient:
         """
         Test connection to the Swagger API
         """
-        print(f"🔍 Testing connection to {self.base_url}...")
+        print(f"[TEST] Testing connection to {self.base_url}...")
         
         try:
             if not self.session:
@@ -493,17 +493,17 @@ class SwaggerAPIClient:
             # Try a simple endpoint that doesn't require authentication
             async with self.session.get(f"{self.base_url}/health", timeout=10) as response:
                 if response.status == 200:
-                    print(f"✅ API connection successful")
+                    print(f"[SUCCESS] API connection successful")
                     return True
                 else:
-                    print(f"⚠️  API responded with status {response.status}")
+                    print(f"[WARNING]  API responded with status {response.status}")
                     return False
                     
         except aiohttp.ClientError as e:
-            print(f"❌ Connection failed: {e}")
+            print(f"[ERROR] Connection failed: {e}")
             return False
         except Exception as e:
-            print(f"❌ Connection test error: {e}")
+            print(f"[ERROR] Connection test error: {e}")
             return False
 
     def get_integration_summary(self, fertilizers_fetched: int, fertilizers_processed: int, 
@@ -543,28 +543,28 @@ async def test_swagger_integration():
     """
     Test function to verify Swagger integration works
     """
-    print("🧪 Testing Swagger API Integration...")
+    print("[TEST] Testing Swagger API Integration...")
     
     try:
         async with SwaggerAPIClient("http://162.248.52.111:8082") as client:
             # Test connection
             if not await client.test_connection():
-                print("❌ Connection test failed")
+                print("[ERROR] Connection test failed")
                 return False
             
             # Test authentication
             login_result = await client.login("csolano@iapcr.com", "123")
             if not login_result.get('success'):
-                print("❌ Authentication test failed")
+                print("[ERROR] Authentication test failed")
                 return False
                 
             # Test data fetching
             fertilizers = await client.get_fertilizers(1)
             if not fertilizers:
-                print("❌ Fertilizer fetch test failed")
+                print("[ERROR] Fertilizer fetch test failed")
                 return False
                 
-            print(f"✅ Integration test successful!")
+            print(f"[SUCCESS] Integration test successful!")
             print(f"   - Fetched {len(fertilizers)} fertilizers")
             print(f"   - Authentication working")
             print(f"   - API connection stable")
@@ -572,7 +572,7 @@ async def test_swagger_integration():
             return True
             
     except Exception as e:
-        print(f"❌ Integration test failed: {e}")
+        print(f"[ERROR] Integration test failed: {e}")
         return False
 
 if __name__ == "__main__":

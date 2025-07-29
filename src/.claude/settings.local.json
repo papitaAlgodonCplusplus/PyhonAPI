@@ -5,7 +5,9 @@
       "Bash(taskkill:*)",
       "Bash(\"taskkill\" \"/F\" \"/PID\" \"12496\")",
       "Bash(powershell:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

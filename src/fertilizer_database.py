@@ -468,7 +468,7 @@ class EnhancedFertilizerDatabase:
         name_lower = name.lower().strip()
         formula_upper = formula.upper().strip()
 
-        print(f"    🔍 Searching enhanced database for: name='{name_lower}', formula='{formula_upper}'")
+        print(f"    Searching enhanced database for: name='{name_lower}', formula='{formula_upper}'")
 
         # Strategy 1: Try exact name pattern matching first
         for fert_key, fert_data in self.fertilizer_data.items():
@@ -859,7 +859,7 @@ class EnhancedFertilizerDatabase:
             'application_guidelines': {
                 'stock_solution_preparation': {
                     'micronutrient_mix': 'Prepare separate micronutrient stock (1000x concentration)',
-                    'storage': 'Store in dark, cool conditions (<25°C)',
+                    'storage': 'Store in dark, cool conditions (<25degC)',
                     'stability': 'Use within 2-4 weeks for optimal effectiveness',
                     'mixing_order': 'Add micronutrients last to prevent precipitation'
                 },

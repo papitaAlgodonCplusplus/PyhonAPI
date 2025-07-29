@@ -70,7 +70,7 @@ class EnhancedPDFReportGenerator:
         # Ensure reports directory exists
         os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        print(f"📄 Generating enhanced PDF report with micronutrients: {filename}")
+        print(f"[DOC] Generating enhanced PDF report with micronutrients: {filename}")
 
         doc = SimpleDocTemplate(
             filename,
@@ -93,7 +93,7 @@ class EnhancedPDFReportGenerator:
         # User information section (existing code)
         user_data = calculation_data.get('user_info', {})
         if user_data:
-            print("📋 Adding user information section...")
+            print("[FORM] Adding user information section...")
             user_info = self._create_enhanced_user_info_section(user_data)
             story.extend(user_info)
             story.append(Spacer(1, 15))
@@ -131,9 +131,9 @@ class EnhancedPDFReportGenerator:
         # Build PDF
         try:
             doc.build(story)
-            print(f"✅ Enhanced PDF report generated successfully: {filename}")
+            print(f"[SUCCESS] Enhanced PDF report generated successfully: {filename}")
         except Exception as e:
-            print(f"❌ Enhanced PDF generation failed: {e}")
+            print(f"[ERROR] Enhanced PDF generation failed: {e}")
 
         return filename
     
@@ -167,7 +167,7 @@ class EnhancedPDFReportGenerator:
             ['ID de Usuario:', str(user_id), 'Email del Usuario:', str(user_email)],
             ['Cliente ID:', str(client_id), 'Perfil ID:', str(profile_id)],
             ['Estado de Usuario:', str(status_id), 'Fecha de Creación:', formatted_date],
-            ['Tipo de Cálculo:', 'Solución Completa con Micronutrientes', 'Versión del Sistema:', 'v6.0.0 Enhanced']
+            ['Tipo de Cálculo:', 'Best Model', 'Versión del Sistema:', 'v6.0.0 Enhanced']
         ]
 
         user_table = Table(user_table_data, colWidths=[2*inch, 2*inch, 2.2*inch, 2*inch])
@@ -203,7 +203,7 @@ class EnhancedPDFReportGenerator:
             ['Fertilizantes Analizados:', str(metadata.get('fertilizers_analyzed', 'N/A')),
              'Fertilizantes Procesados:', str(metadata.get('fertilizers_processed', 'N/A'))],
             ['Método de Optimización:', metadata.get('method_used', 'Enhanced Deterministic'),
-             'Micronutrientes Incluidos:', 'Sí - Cobertura Completa (Fe, Mn, Zn, Cu, B, Mo)'],
+             'Micronutrientes Incluidos:', 'Sí'],
             ['EC Final:', f"{final_solution.get('calculated_EC', 0):.2f} dS/m",
              'pH Final:', f"{final_solution.get('calculated_pH', 0):.1f}"],
             ['Micronutrientes Suministrados:', f"{micronutrient_summary.get('total_micronutrients_supplied', 0)}/6",
@@ -249,7 +249,7 @@ class EnhancedPDFReportGenerator:
             # MICRONUTRIENTS (NEW!)
             'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo',
             # Summary
-            'Σ aniones', 'CE'
+            'SUM aniones', 'CE'
         ]
 
         table_data = [headers]
@@ -277,10 +277,10 @@ class EnhancedPDFReportGenerator:
                             for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
                 is_required = '[Fertilizante Requerido]' in fert_name
                 
-                micro_indicator = "🧪" if is_micro or is_required else "📋"
-                print(f"    ✅ Added fertilizer row: {micro_indicator} {fert_name} ({dosage_g_l:.6f} g/L)")
+                micro_indicator = "[TEST]" if is_micro or is_required else "[FORM]"
+                print(f"    [SUCCESS] Added fertilizer row: {micro_indicator} {fert_name} ({dosage_g_l:.6f} g/L)")
             else:
-                print(f"    ❌ Skipped {fert_name}: dosage too low ({dosage_g_l:.8f} g/L)")
+                print(f"    [ERROR] Skipped {fert_name}: dosage too low ({dosage_g_l:.8f} g/L)")
 
         print(f"    Total fertilizer rows added: {fertilizer_rows_added}")
 
@@ -536,7 +536,7 @@ class EnhancedPDFReportGenerator:
             elements.append(Spacer(1, 10))
             
             # Create bulleted list of recommendations
-            recommendations_text = "<br/>".join([f"• {rec}" for rec in micronutrient_recommendations[:8]])
+            recommendations_text = "<br/>".join([f"[?] {rec}" for rec in micronutrient_recommendations[:8]])
             
             recommendations_paragraph = Paragraph(
                 recommendations_text,
@@ -606,7 +606,7 @@ class EnhancedPDFReportGenerator:
             micro_fert_table.setStyle(TableStyle(table_style))
             elements.append(micro_fert_table)
         else:
-            no_micro_text = Paragraph("⚠️ NO SE DETECTARON FERTILIZANTES MICRONUTRIENTES EN LA FORMULACIÓN", 
+            no_micro_text = Paragraph("[WARNING] NO SE DETECTARON FERTILIZANTES MICRONUTRIENTES EN LA FORMULACIÓN", 
                                     self.styles['Normal'])
             elements.append(no_micro_text)
 
@@ -1230,7 +1230,7 @@ class EnhancedPDFReportGenerator:
         display_name = fert_name
         if is_required_fertilizer:
             # Add special marker for required fertilizers
-            display_name = f"🧪 {clean_name} [REQ]"
+            display_name = f"[TEST] {clean_name} [REQ]"
         
         # Enhanced row with ALL elements including micronutrients
         row = [
@@ -1335,8 +1335,8 @@ class EnhancedPDFReportGenerator:
         
         legend_data = [
             ['Símbolo', 'Significado', 'Descripción'],
-            ['🧪 [REQ]', 'Fertilizante Requerido', 'Agregado automáticamente para completar micronutrientes'],
-            ['📋 Normal', 'Fertilizante del Catálogo API', 'Obtenido del catálogo principal del sistema'],
+            ['[TEST] [REQ]', 'Fertilizante Requerido', 'Agregado automáticamente para completar micronutrientes'],
+            ['[FORM] Normal', 'Fertilizante del Catálogo API', 'Obtenido del catálogo principal del sistema'],
             ['Fondo Celeste', 'Fila de Fertilizante Requerido', 'Indica suplementación automática de micronutrientes'],
             ['Texto Azul/Rojo', 'Columnas de Micronutrientes', 'Valores de Fe, Mn, Zn, Cu, B, Mo resaltados']
         ]

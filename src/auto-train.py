@@ -240,25 +240,25 @@ class EnhancedWindowsMLTrainer:
                     training_thread.join(timeout=self.config.timeout_seconds)
                     
                     if training_thread.is_alive():
-                        print(f"   ⏰ Model {model_name} timed out after {self.config.timeout_seconds}s")
+                        print(f"   [TIME] Model {model_name} timed out after {self.config.timeout_seconds}s")
                         continue
                     
                     # Get result from queue
                     try:
                         status, result = result_queue.get_nowait()
                         if status == 'error':
-                            print(f"   ❌ Model {model_name} failed: {result}")
+                            print(f"   [ERROR] Model {model_name} failed: {result}")
                             continue
                         
                         model_results = result
                         
                     except queue.Empty:
-                        print(f"   ❌ Model {model_name} failed: No result returned")
+                        print(f"   [ERROR] Model {model_name} failed: No result returned")
                         continue
                     
                     # Check if acceptable (enhanced requirements)
                     if self._check_enhanced_requirements(model_results):
-                        print(f"\n🎯 SUCCESS! Enhanced model {model_name} meets micronutrient requirements!")
+                        print(f"\n[TARGET] SUCCESS! Enhanced model {model_name} meets micronutrient requirements!")
                         print(f"   MAE: {model_results['target_mae']:.3f} mg/L")
                         print(f"   R²: {model_results['target_r2']:.4f}")
                         print(f"   Max deviation: {model_results['max_deviation']:.1f}%")
@@ -275,10 +275,10 @@ class EnhancedWindowsMLTrainer:
                     if model_results['combined_score'] < best_iteration_score:
                         best_iteration_score = model_results['combined_score']
                         best_iteration_model = model_results
-                        print(f"   ⭐ New iteration best: {best_iteration_score:.4f}")
+                        print(f"   [?] New iteration best: {best_iteration_score:.4f}")
                     
                 except Exception as e:
-                    print(f"   ❌ Model {model_name} failed: {e}")
+                    print(f"   [ERROR] Model {model_name} failed: {e}")
                     continue
             
             # Update global best
@@ -288,7 +288,7 @@ class EnhancedWindowsMLTrainer:
                 self.scaler = best_iteration_model['scaler']
                 best_iteration = iteration
                 patience_counter = 0
-                print(f"   🔥 New global best: {self.best_score:.4f}")
+                print(f"   [?] New global best: {self.best_score:.4f}")
             else:
                 patience_counter += 1
             
@@ -300,13 +300,13 @@ class EnhancedWindowsMLTrainer:
                         self.config.max_training_samples
                     )
                     patience_counter = 0
-                    print(f"   📈 Increasing samples to {current_samples:,}")
+                    print(f"   [?] Increasing samples to {current_samples:,}")
                 else:
-                    print(f"   🛑 Early stopping - no improvement")
+                    print(f"   [?] Early stopping - no improvement")
                     break
         
         # Training completed
-        print(f"\n⚠️ Enhanced training completed without perfect convergence")
+        print(f"\n[WARNING] Enhanced training completed without perfect convergence")
         if self.best_model:
             self._save_enhanced_model(
                 {'model': self.best_model, 'scaler': self.scaler, 'combined_score': self.best_score},
@@ -422,7 +422,7 @@ class EnhancedWindowsMLTrainer:
                 print(f"     Progress: {progress:.0f}%")
         
         self.total_samples_generated += n_samples
-        print(f"   ✅ Generated {n_samples:,} enhanced training scenarios with micronutrients")
+        print(f"   [SUCCESS] Generated {n_samples:,} enhanced training scenarios with micronutrients")
         return training_scenarios
 
     def _calculate_enhanced_optimal_dosages(self, targets: Dict[str, float], water: Dict[str, float], fertilizer_names: List[str]) -> Dict[str, float]:
@@ -512,7 +512,7 @@ class EnhancedWindowsMLTrainer:
             achieved = achieved_micros.get(micro, 0)
             
             if target > 0:
-                # More forgiving scoring for micronutrients (±50% acceptable)
+                # More forgiving scoring for micronutrients (+/-50% acceptable)
                 deviation = abs(achieved - target) / target
                 if deviation <= 0.5:
                     score = 1.0 - deviation
@@ -756,10 +756,10 @@ class EnhancedWindowsMLTrainer:
         micro_ok = model_results.get('micronutrient_accuracy', 0) >= 0.75  # 75% micronutrient accuracy
         
         print(f"       Enhanced requirements check:")
-        print(f"         MAE ≤ {self.config.target_mae_threshold}: {mae_ok}")
-        print(f"         R² ≥ {self.config.target_r2_threshold}: {r2_ok}")
-        print(f"         Max dev ≤ {self.config.max_deviation_percent}%: {deviation_ok}")
-        print(f"         Micro accuracy ≥ 75%: {micro_ok}")
+        print(f"         MAE <= {self.config.target_mae_threshold}: {mae_ok}")
+        print(f"         R² >= {self.config.target_r2_threshold}: {r2_ok}")
+        print(f"         Max dev <= {self.config.max_deviation_percent}%: {deviation_ok}")
+        print(f"         Micro accuracy >= 75%: {micro_ok}")
         
         return mae_ok and r2_ok and deviation_ok and micro_ok
 
@@ -803,13 +803,13 @@ class EnhancedWindowsMLTrainer:
         with open(filepath, 'wb') as f:
             pickle.dump(model_data, f)
         
-        print(f"     💾 Enhanced model saved: {filename}")
+        print(f"     [?] Enhanced model saved: {filename}")
         
         # Update main model file
         main_filepath = os.path.join(save_dir, "ml_optimizer_model.pkl")
         with open(main_filepath, 'wb') as f:
             pickle.dump(model_data, f)
-        print(f"     💾 Main enhanced model updated: ml_optimizer_model.pkl")
+        print(f"     [?] Main enhanced model updated: ml_optimizer_model.pkl")
 
     def _create_enhanced_summary(self, iterations_completed: int, final_model_name: str) -> Dict[str, Any]:
         """Create enhanced training summary with micronutrient info"""
@@ -905,7 +905,7 @@ def enhanced_train_practical_model(
 
 def enhanced_quick_test():
     """Ultra-quick test for enhanced Windows development with micronutrients"""
-    print("🚀 Enhanced Windows Quick Test - Fast Training with Micronutrients")
+    print("[?] Enhanced Windows Quick Test - Fast Training with Micronutrients")
     
     config = EnhancedTrainingConfig(
         target_mae_threshold=20.0,  # Very relaxed for testing
@@ -919,7 +919,7 @@ def enhanced_quick_test():
     trainer = EnhancedWindowsMLTrainer(config)
     result = trainer.enhanced_train_until_acceptable()
     
-    print(f"\n🏁 Enhanced Windows quick test completed!")
+    print(f"\n[?] Enhanced Windows quick test completed!")
     print(f"Status: {result['training_status']}")
     print(f"Duration: {result['training_duration_minutes']:.1f} minutes")
     print(f"Model ready: {result['final_metrics']['model_ready']}")
@@ -929,7 +929,7 @@ def enhanced_quick_test():
 
 def enhanced_production_train():
     """Production-quality training optimized for Windows with micronutrients"""
-    print("🎯 Enhanced Windows Production Training - Complete Nutrient Coverage")
+    print("[TARGET] Enhanced Windows Production Training - Complete Nutrient Coverage")
     
     result = enhanced_train_practical_model(
         target_mae_threshold=10.0,   # Good accuracy including micronutrients
@@ -939,7 +939,7 @@ def enhanced_production_train():
         include_micronutrients=True
     )
     
-    print(f"\n🏆 Enhanced production training completed!")
+    print(f"\n[?] Enhanced production training completed!")
     print(f"Status: {result['training_status']}")
     print(f"Duration: {result['training_duration_minutes']:.1f} minutes")
     print(f"Convergence: {result['convergence_achieved']}")
@@ -969,17 +969,17 @@ def enhanced_production_train():
                                if dosage > 0.001 and any(micro in name.lower() 
                                for micro in ['hierro', 'manganeso', 'zinc', 'cobre', 'borico', 'molibdato'])])
         
-        print(f"\n✅ Enhanced model test successful!")
+        print(f"\n[SUCCESS] Enhanced model test successful!")
         print(f"Total predictions: {len(predictions)}")
         print(f"Macro fertilizers: {macro_fertilizers}")
         print(f"Micro fertilizers: {micro_fertilizers}")
         print(f"Sample predictions:")
         for fert, dosage in list(predictions.items())[:10]:  # Show first 10
-            fert_type = "🧪" if any(micro in fert.lower() for micro in ['hierro', 'manganeso', 'zinc', 'cobre', 'borico', 'molibdato']) else "📋"
+            fert_type = "[?]" if any(micro in fert.lower() for micro in ['hierro', 'manganeso', 'zinc', 'cobre', 'borico', 'molibdato']) else "[FORM]"
             print(f"  {fert_type} {fert}: {dosage:.4f} g/L")
         
     except Exception as e:
-        print(f"⚠️ Model test failed: {e}")
+        print(f"[WARNING] Model test failed: {e}")
     
     return result
 
@@ -1014,10 +1014,10 @@ if __name__ == "__main__":
     else:
         # Default: Enhanced production training
         try:
-            print("🖥️ Starting enhanced Windows production training...")
+            print("[?][?] Starting enhanced Windows production training...")
             result = enhanced_production_train()
             
-            print(f"\n🎯 ENHANCED TRAINING COMPLETE!")
+            print(f"\n[TARGET] ENHANCED TRAINING COMPLETE!")
             print(f"Result: {result['training_status']}")
             print(f"Time: {result['training_duration_minutes']:.1f} minutes")
             print(f"Success: {result['convergence_achieved']}")
@@ -1025,20 +1025,20 @@ if __name__ == "__main__":
             print(f"Micronutrient support: Complete (Fe, Mn, Zn, Cu, B, Mo)")
             
             if result['convergence_achieved']:
-                print(f"\n✅ Enhanced model ready for use in main API!")
+                print(f"\n[SUCCESS] Enhanced model ready for use in main API!")
                 print(f"File: saved_models/ml_optimizer_model.pkl")
                 print(f"Platform compatibility: Windows/Cross-platform")
                 print(f"Micronutrient fertilizers: {result['micronutrient_features']['micronutrient_fertilizers']}")
             else:
-                print(f"\n⚠️ Model trained but may need refinement")
+                print(f"\n[WARNING] Model trained but may need refinement")
                 print(f"Try running with 'quick' option for faster testing")
                 
         except KeyboardInterrupt:
-            print(f"\n\n⏹️ Enhanced training interrupted by user")
+            print(f"\n\n[?][?] Enhanced training interrupted by user")
             print(f"Any partial progress has been saved")
             print(f"Try 'quick' option for faster testing")
         except Exception as e:
-            print(f"\n\n❌ Enhanced training failed: {e}")
+            print(f"\n\n[ERROR] Enhanced training failed: {e}")
             print(f"Debugging suggestions for Windows:")
             print(f"  1. Try: python auto-train.py quick")
             print(f"  2. Check Python/sklearn installation")

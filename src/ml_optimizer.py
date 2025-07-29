@@ -716,7 +716,7 @@ class ProfessionalMLFertilizerOptimizer:
                 final_error = result.fun
                 
                 if final_error < initial_error:
-                    print(f"   Balance optimization successful: {initial_error:.4f} → {final_error:.4f}")
+                    print(f"   Balance optimization successful: {initial_error:.4f} -> {final_error:.4f}")
                     return optimized_dosages
                 else:
                     print(f"   Balance optimization didn't improve solution")
@@ -1371,107 +1371,6 @@ def create_ml_optimizer(config: Optional[MLModelConfig] = None) -> ProfessionalM
         error_msg = f"[ERROR] Cannot create ML optimizer: {e}\nInstall required packages: pip install scikit-learn scipy"
         print(error_msg)
         raise RuntimeError(error_msg)
-
-
-# ============================================================================
-# LINEAR ALGEBRA OPTIMIZER (Compatibility with existing main_api.py)
-# ============================================================================
-
-class LinearAlgebraOptimizer:
-    """
-    Linear algebra based optimization using matrix operations
-    A * x = b where A is composition matrix, x is dosages, b is targets
-    """
-    
-    def __init__(self):
-        self.nutrient_calc = EnhancedFertilizerCalculator()
-        print("[LA] Linear Algebra Optimizer initialized")
-    
-    def optimize_linear_algebra(self, fertilizers: List, targets: Dict[str, float], 
-                               water: Dict[str, float]) -> Dict[str, float]:
-        """
-        Solve fertilizer optimization using linear algebra methods
-        """
-        print("\n=== LINEAR ALGEBRA OPTIMIZATION ===")
-        
-        # Prepare adjusted targets (subtract water contribution)
-        adjusted_targets = {}
-        for element, target in targets.items():
-            water_contribution = water.get(element, 0)
-            adjusted_targets[element] = max(0, target - water_contribution)
-        
-        print(f"Adjusted targets (after water): {adjusted_targets}")
-        
-        # Prepare linear system
-        A, b, nutrients = self.nutrient_calc.prepare_linear_algebra_system(
-            fertilizers, adjusted_targets
-        )
-        
-        print(f"System matrix A shape: {A.shape}")
-        print(f"Target vector b shape: {b.shape}")
-        print(f"Nutrients: {nutrients}")
-        
-        # Try different solving methods
-        methods = ["least_squares", "pseudoinverse", "normal_equations"]
-        best_solution = None
-        best_score = float('inf')
-        best_method = None
-        
-        for method in methods:
-            try:
-                print(f"\nTrying method: {method}")
-                x = self.nutrient_calc.solve_linear_system(A, b, method)
-                
-                # Evaluate solution
-                achieved = A @ x
-                residual = np.linalg.norm(achieved - b)
-                non_negative_score = np.sum(np.maximum(0, -x))  # Penalty for negative values
-                total_score = residual + non_negative_score * 1000
-                
-                print(f"  Residual: {residual:.6f}")
-                print(f"  Non-negative penalty: {non_negative_score:.6f}")
-                print(f"  Total score: {total_score:.6f}")
-                
-                if total_score < best_score:
-                    best_score = total_score
-                    best_solution = x.copy()
-                    best_method = method
-                
-            except Exception as e:
-                print(f"  Method {method} failed: {e}")
-        
-        if best_solution is None:
-            print("All linear algebra methods failed. Using fallback.")
-            return self._fallback_solution(fertilizers, adjusted_targets)
-        
-        print(f"\nBest method: {best_method} (score: {best_score:.6f})")
-        
-        # Convert solution to dosage dictionary
-        dosages = {}
-        for i, fertilizer in enumerate(fertilizers):
-            dosage = max(0, float(best_solution[i]) / 1000)  # Convert mg/L to g/L
-            if dosage > 0.0001:  # Only include meaningful dosages
-                dosages[fertilizer.name] = dosage
-        
-        print(f"Linear algebra solution:")
-        for name, dosage in dosages.items():
-            print(f"  {name}: {dosage:.4f} g/L")
-        
-        return dosages
-    
-    def _fallback_solution(self, fertilizers: List, targets: Dict[str, float]) -> Dict[str, float]:
-        """Simple fallback solution if linear algebra fails"""
-        dosages = {}
-        
-        # Simple heuristic solution
-        for fertilizer in fertilizers[:5]:  # Use first 5 fertilizers
-            total_contribution = (sum(fertilizer.composition.cations.values()) + 
-                                sum(fertilizer.composition.anions.values()))
-            if total_contribution > 10:  # Only use fertilizers with significant content
-                dosages[fertilizer.name] = 0.001  # Small default dosage
-        
-        return dosages
-
 
 # ============================================================================
 # COMPATIBILITY CLASSES FOR EXISTING IMPORTS

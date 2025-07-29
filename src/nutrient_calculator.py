@@ -57,7 +57,7 @@ class EnhancedFertilizerCalculator:
             fert = self.fertilizer_db.create_fertilizer_from_database(name)
             if fert:
                 fertilizer_list.append(fert)
-                print(f"  ✅ Added macronutrient: {fert.name}")
+                print(f"  [SUCCESS] Added macronutrient: {fert.name}")
         
         # Add micronutrient fertilizers if requested
         if include_micronutrients:
@@ -72,9 +72,9 @@ class EnhancedFertilizerCalculator:
                         if content > 0.1:
                             micro_content.append(f"{elem}:{content:.1f}%")
                     
-                    print(f"  🧪 Added micronutrient: {fert.name} ({', '.join(micro_content)})")
+                    print(f"  [TEST] Added micronutrient: {fert.name} ({', '.join(micro_content)})")
         
-        print(f"\n📋 Complete fertilizer set: {len(fertilizer_list)} fertilizers")
+        print(f"\n[FORM] Complete fertilizer set: {len(fertilizer_list)} fertilizers")
         print(f"   Macronutrients: {len(essential_fertilizers)}")
         if include_micronutrients:
             print(f"   Micronutrients: {len(micronutrient_fertilizers)}")
@@ -99,7 +99,7 @@ class EnhancedFertilizerCalculator:
         for micronutrient, default_value in standard_micronutrients.items():
             if micronutrient not in complete_targets:
                 complete_targets[micronutrient] = default_value
-                print(f"  🎯 Added micronutrient target: {micronutrient} = {default_value} mg/L")
+                print(f"  [TARGET] Added micronutrient target: {micronutrient} = {default_value} mg/L")
         
         return complete_targets
 
@@ -125,12 +125,12 @@ class EnhancedFertilizerCalculator:
             remaining_nutrients[element] = remaining
             
             if remaining > 0:
-                print(f"  🎯 {element}: Target={target:.3f}, Water={water_content:.3f}, Need={remaining:.3f} mg/L")
+                print(f"  [TARGET] {element}: Target={target:.3f}, Water={water_content:.3f}, Need={remaining:.3f} mg/L")
 
         results = {}
         
         # Step 2: Macronutrients first (existing logic)
-        print(f"\n📋 STEP 1: MACRONUTRIENTS")
+        print(f"\n[FORM] STEP 1: MACRONUTRIENTS")
         
         # Phosphorus sources
         if remaining_nutrients.get('P', 0) > 0:
@@ -146,7 +146,7 @@ class EnhancedFertilizerCalculator:
                 if dosage > 0:
                     results[best_p_fert.name] = dosage / 1000.0
                     self._update_remaining_nutrients(remaining_nutrients, best_p_fert, dosage)
-                    print(f"    ✅ {best_p_fert.name}: {dosage/1000:.3f} g/L")
+                    print(f"    [SUCCESS] {best_p_fert.name}: {dosage/1000:.3f} g/L")
         
         # Calcium sources
         if remaining_nutrients.get('Ca', 0) > 0:
@@ -159,7 +159,7 @@ class EnhancedFertilizerCalculator:
                 if dosage > 0:
                     results[best_ca_fert.name] = dosage / 1000.0
                     self._update_remaining_nutrients(remaining_nutrients, best_ca_fert, dosage)
-                    print(f"    ✅ {best_ca_fert.name}: {dosage/1000:.3f} g/L")
+                    print(f"    [SUCCESS] {best_ca_fert.name}: {dosage/1000:.3f} g/L")
         
         # Potassium sources
         if remaining_nutrients.get('K', 0) > 0:
@@ -172,7 +172,7 @@ class EnhancedFertilizerCalculator:
                 if dosage > 0:
                     results[best_k_fert.name] = dosage / 1000.0
                     self._update_remaining_nutrients(remaining_nutrients, best_k_fert, dosage)
-                    print(f"    ✅ {best_k_fert.name}: {dosage/1000:.3f} g/L")
+                    print(f"    [SUCCESS] {best_k_fert.name}: {dosage/1000:.3f} g/L")
         
         # Magnesium sources
         if remaining_nutrients.get('Mg', 0) > 0:
@@ -185,10 +185,10 @@ class EnhancedFertilizerCalculator:
                 if dosage > 0:
                     results[best_mg_fert.name] = dosage / 1000.0
                     self._update_remaining_nutrients(remaining_nutrients, best_mg_fert, dosage)
-                    print(f"    ✅ {best_mg_fert.name}: {dosage/1000:.3f} g/L")
+                    print(f"    [SUCCESS] {best_mg_fert.name}: {dosage/1000:.3f} g/L")
         
         # Step 3: MICRONUTRIENTS (NEW!)
-        print(f"\n🧪 STEP 2: MICRONUTRIENTS")
+        print(f"\n[TEST] STEP 2: MICRONUTRIENTS")
         
         micronutrients = ['Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
         
@@ -220,16 +220,16 @@ class EnhancedFertilizerCalculator:
                     if dosage > 0.1:  # Minimum meaningful dosage
                         results[best_micro_fert.name] = dosage / 1000.0
                         self._update_remaining_nutrients(remaining_nutrients, best_micro_fert, dosage)
-                        print(f"    🧪 {best_micro_fert.name}: {dosage/1000:.4f} g/L for {micronutrient}")
+                        print(f"    [TEST] {best_micro_fert.name}: {dosage/1000:.4f} g/L for {micronutrient}")
                 
                 else:
-                    print(f"    ⚠️  No source found for {micronutrient}")
+                    print(f"    [WARNING]  No source found for {micronutrient}")
         
         # Step 4: Final verification
         total_dosage = sum(results.values())
         active_fertilizers = len([d for d in results.values() if d > 0.001])
         
-        print(f"\n✅ ENHANCED OPTIMIZATION COMPLETE")
+        print(f"\n[SUCCESS] ENHANCED OPTIMIZATION COMPLETE")
         print(f"   Active fertilizers: {active_fertilizers}")
         print(f"   Total dosage: {total_dosage:.3f} g/L")
         print(f"   Macronutrients: {len([f for f in results.keys() if not any(micro in f.lower() for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])])}")
@@ -280,7 +280,7 @@ class EnhancedFertilizerCalculator:
                                  fertilizers: List = None) -> Dict[str, Any]:
         """Generate complete calculation data for enhanced PDF with micronutrients"""
         
-        print(f"\n📄 GENERATING ENHANCED PDF DATA WITH MICRONUTRIENTS")
+        print(f"\n[DOC] GENERATING ENHANCED PDF DATA WITH MICRONUTRIENTS")
         
         # Get complete fertilizer set
         if fertilizers is None:
@@ -600,7 +600,7 @@ class EnhancedFertilizerCalculator:
         """
         Analyze micronutrient coverage and identify gaps that need supplementation
         """
-        print(f"\n🔍 ANALYZING MICRONUTRIENT COVERAGE")
+        print(f"\nANALYZING MICRONUTRIENT COVERAGE")
         
         micronutrients = ['Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
         coverage_analysis = {
@@ -672,7 +672,7 @@ class EnhancedFertilizerCalculator:
         """
         Calculate precise dosages for micronutrient fertilizers
         """
-        print(f"\n🧪 CALCULATING MICRONUTRIENT DOSAGES")
+        print(f"\n[TEST] CALCULATING MICRONUTRIENT DOSAGES")
         
         dosages = {}
         
@@ -734,16 +734,16 @@ class EnhancedFertilizerCalculator:
                     # Calculate actual contribution
                     actual_contribution = final_dosage * 1000 * best_content * (best_fertilizer.percentage / 100) / 100
                     
-                    print(f"     ✅ {best_fertilizer.name}: {final_dosage:.4f} g/L")
+                    print(f"     [SUCCESS] {best_fertilizer.name}: {final_dosage:.4f} g/L")
                     print(f"        Will provide: {actual_contribution:.3f} mg/L of {micro}")
                     print(f"        Efficiency: {efficiency*100:.0f}%")
                     
                     if final_dosage >= max_dosage:
-                        print(f"        ⚠️  Dosage limited to maximum safe level")
+                        print(f"        [WARNING]  Dosage limited to maximum safe level")
                 else:
-                    print(f"     ❌ Calculated dosage too small for {micro}")
+                    print(f"     [ERROR] Calculated dosage too small for {micro}")
             else:
-                print(f"     ❌ No suitable fertilizer found for {micro}")
+                print(f"     [ERROR] No suitable fertilizer found for {micro}")
         
         return dosages
 
@@ -752,7 +752,7 @@ class EnhancedFertilizerCalculator:
         """
         Validate final micronutrient concentrations against targets and safety limits
         """
-        print(f"\n✅ VALIDATING MICRONUTRIENT SOLUTION")
+        print(f"\n[SUCCESS] VALIDATING MICRONUTRIENT SOLUTION")
         
         micronutrients = ['Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
         validation_results = {
@@ -831,10 +831,10 @@ class EnhancedFertilizerCalculator:
         print(f"   Compliance score: {validation_results['compliance_score']:.1f}%")
         
         if validation_results['safety_warnings']:
-            print(f"   ⚠️  Safety warnings: {len(validation_results['safety_warnings'])}")
+            print(f"   [WARNING]  Safety warnings: {len(validation_results['safety_warnings'])}")
         
         if validation_results['adequacy_warnings']:
-            print(f"   ⚠️  Adequacy warnings: {len(validation_results['adequacy_warnings'])}")
+            print(f"   [WARNING]  Adequacy warnings: {len(validation_results['adequacy_warnings'])}")
         
         return validation_results
 
@@ -848,7 +848,7 @@ class EnhancedFertilizerCalculator:
         # Safety recommendations
         for warning in validation_results['safety_warnings']:
             micro = warning.split(':')[0]
-            recommendations.append(f"🚨 URGENT: Reduce {micro} fertilizer dosage to prevent toxicity")
+            recommendations.append(f"[?] URGENT: Reduce {micro} fertilizer dosage to prevent toxicity")
         
         # Adequacy recommendations  
         for warning in validation_results['adequacy_warnings']:
@@ -861,32 +861,32 @@ class EnhancedFertilizerCalculator:
             )
             
             if has_fertilizer:
-                recommendations.append(f"📈 Increase {micro} fertilizer dosage to meet adequacy requirements")
+                recommendations.append(f"[UP] Increase {micro} fertilizer dosage to meet adequacy requirements")
             else:
-                recommendations.append(f"➕ Add {micro} fertilizer source (auto-supplementation recommended)")
+                recommendations.append(f"[PLUS] Add {micro} fertilizer source (auto-supplementation recommended)")
         
         # Performance recommendations
         compliance_score = validation_results['compliance_score']
         if compliance_score >= 90:
-            recommendations.append("✅ Excellent micronutrient balance achieved")
+            recommendations.append("[SUCCESS] Excellent micronutrient balance achieved")
         elif compliance_score >= 70:
-            recommendations.append("📊 Good micronutrient coverage with minor adjustments needed")
+            recommendations.append("[CHART] Good micronutrient coverage with minor adjustments needed")
         elif compliance_score >= 50:
-            recommendations.append("⚠️ Moderate micronutrient gaps - consider formula review")
+            recommendations.append("[WARNING] Moderate micronutrient gaps - consider formula review")
         else:
-            recommendations.append("🔴 Significant micronutrient deficiencies - major formula revision needed")
+            recommendations.append("[RED] Significant micronutrient deficiencies - major formula revision needed")
         
         # Water quality considerations
-        recommendations.append("💧 Monitor water quality for micronutrient interactions")
-        recommendations.append("🔬 Consider chelated forms for hard water conditions")
+        recommendations.append("[WATER] Monitor water quality for micronutrient interactions")
+        recommendations.append("[MICRO] Consider chelated forms for hard water conditions")
         
         # Application recommendations
-        recommendations.append("📦 Prepare micronutrient stock solution separately from macronutrients")
-        recommendations.append("🌡️ Store micronutrient solutions in cool, dark conditions")
-        recommendations.append("⏰ Replace micronutrient stock solutions every 2-4 weeks")
+        recommendations.append("[PACKAGE] Prepare micronutrient stock solution separately from macronutrients")
+        recommendations.append("[TEMP] Store micronutrient solutions in cool, dark conditions")
+        recommendations.append("[TIME] Replace micronutrient stock solutions every 2-4 weeks")
         
         # pH management
-        recommendations.append("📏 Maintain solution pH 5.8-6.2 for optimal micronutrient availability")
+        recommendations.append("[RULER] Maintain solution pH 5.8-6.2 for optimal micronutrient availability")
         
         return recommendations[:10]  # Limit to top 10 recommendations
 
@@ -898,7 +898,7 @@ def create_enhanced_calculator():
 # Test function
 def test_enhanced_calculator():
     """Test the enhanced calculator with micronutrients"""
-    print("🧪 Testing Enhanced Calculator with Micronutrients...")
+    print("[TEST] Testing Enhanced Calculator with Micronutrients...")
     
     calc = create_enhanced_calculator()
     
@@ -942,7 +942,7 @@ def test_enhanced_calculator():
     print(f"   Micronutrients supplied: {supplied_micronutrients}/6")
     print(f"   Adequate concentrations: {adequate_micronutrients}/6")
     
-    print(f"\n✅ Enhanced calculator test completed successfully!")
+    print(f"\n[SUCCESS] Enhanced calculator test completed successfully!")
     print(f"   System now supports complete micronutrient calculations")
     print(f"   Ready for integration with PDF generation and ML training")
     

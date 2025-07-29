@@ -48,7 +48,7 @@ class SolutionVerifier:
         """
         Comprehensive verification of nutrient concentrations against targets
         """
-        print(f"\n🔍 VERIFYING NUTRIENT CONCENTRATIONS")
+        print(f"\nVERIFYING NUTRIENT CONCENTRATIONS")
         print(f"Target parameters: {len(target_concentrations)}")
         print(f"Final parameters: {len(final_concentrations)}")
         
@@ -98,11 +98,11 @@ class SolutionVerifier:
                 
                 # Log significant deviations
                 if percentage_deviation > 20:
-                    print(f"  ⚠️  {nutrient}: {percentage_deviation:.1f}% deviation ({status})")
+                    print(f"  [WARNING]  {nutrient}: {percentage_deviation:.1f}% deviation ({status})")
                 elif percentage_deviation > 10:
-                    print(f"  📋 {nutrient}: {percentage_deviation:.1f}% deviation")
+                    print(f"  [FORM] {nutrient}: {percentage_deviation:.1f}% deviation")
 
-        print(f"✅ Verification completed for {len(results)} nutrients")
+        print(f"[SUCCESS] Verification completed for {len(results)} nutrients")
         return results
 
     def _evaluate_nutrient_status(self, final: float, target: float, 
@@ -143,7 +143,7 @@ class SolutionVerifier:
         """
         Verify critical ionic relationships and ratios
         """
-        print(f"\n⚖️  VERIFYING IONIC RELATIONSHIPS")
+        print(f"\n[?][?]  VERIFYING IONIC RELATIONSHIPS")
         
         results = []
 
@@ -239,7 +239,7 @@ class SolutionVerifier:
                 'recommendation': recommendation
             })
 
-        print(f"✅ Ionic relationship verification completed: {len(results)} ratios analyzed")
+        print(f"[SUCCESS] Ionic relationship verification completed: {len(results)} ratios analyzed")
         return results
 
     def _evaluate_ratio_status(self, actual_ratio: float, ratio_info: Dict[str, float], 
@@ -271,7 +271,7 @@ class SolutionVerifier:
         """
         Professional ionic balance verification with detailed analysis
         """
-        print(f"\n⚖️  VERIFYING IONIC BALANCE")
+        print(f"\n[?][?]  VERIFYING IONIC BALANCE")
         
         # Define cations and anions
         cation_elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu']
@@ -610,7 +610,7 @@ class CostAnalyzer:
         """
         Calculate comprehensive solution cost analysis
         """
-        print(f"\n💰 CALCULATING COST ANALYSIS")
+        print(f"\n[MONEY] CALCULATING COST ANALYSIS")
         print(f"Fertilizer amounts: {len(fertilizer_amounts)} fertilizers")
         print(f"Concentrated volume: {concentrated_volume:.1f} L")
         print(f"Diluted volume: {diluted_volume:.1f} L")
@@ -669,8 +669,8 @@ class CostAnalyzer:
             'region': region
         }
         
-        print(f"💰 Total cost: ${total_cost_concentrated:.3f}")
-        print(f"💧 Cost per liter: ${cost_per_liter_diluted:.4f}")
+        print(f"[MONEY] Total cost: ${total_cost_concentrated:.3f}")
+        print(f"[WATER] Cost per liter: ${cost_per_liter_diluted:.4f}")
         
         return result
 
@@ -713,10 +713,10 @@ class CostAnalyzer:
         
         for keyword, default_cost in keyword_mapping.items():
             if keyword in name_lower:
-                print(f"    💰 Using keyword-based cost for {fertilizer_name}: ${default_cost:.2f}/kg")
+                print(f"    [MONEY] Using keyword-based cost for {fertilizer_name}: ${default_cost:.2f}/kg")
                 return default_cost
         
         # Default cost for unknown fertilizers
         default_cost = 2.00
-        print(f"    ⚠️  Unknown fertilizer {fertilizer_name}, using default cost: ${default_cost:.2f}/kg")
+        print(f"    [WARNING]  Unknown fertilizer {fertilizer_name}, using default cost: ${default_cost:.2f}/kg")
         return default_cost

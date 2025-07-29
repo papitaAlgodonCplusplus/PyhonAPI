@@ -13,24 +13,24 @@ def diagnose_fertilizer_dosages(calculation_results):
     
     # 1. Check if calculation_results exists
     if not calculation_results:
-        print("❌ ERROR: calculation_results is None or empty!")
+        print("[ERROR] ERROR: calculation_results is None or empty!")
         return
     
-    print(f"✅ calculation_results found with {len(calculation_results)} top-level keys")
+    print(f"[SUCCESS] calculation_results found with {len(calculation_results)} top-level keys")
     print(f"   Keys: {list(calculation_results.keys())}")
     
     # 2. Check fertilizer_dosages
     fertilizer_dosages = calculation_results.get('fertilizer_dosages', {})
     
     if not fertilizer_dosages:
-        print("❌ ERROR: fertilizer_dosages is None or empty!")
+        print("[ERROR] ERROR: fertilizer_dosages is None or empty!")
         print("   This is likely why no fertilizer rows appear in the PDF")
         return
     
-    print(f"✅ fertilizer_dosages found with {len(fertilizer_dosages)} fertilizers")
+    print(f"[SUCCESS] fertilizer_dosages found with {len(fertilizer_dosages)} fertilizers")
     
     # 3. Analyze each fertilizer dosage
-    print("\n📋 INDIVIDUAL FERTILIZER ANALYSIS:")
+    print("\n[FORM] INDIVIDUAL FERTILIZER ANALYSIS:")
     print("-" * 50)
     
     active_fertilizers = 0
@@ -52,17 +52,17 @@ def diagnose_fertilizer_dosages(calculation_results):
                 
                 try:
                     dosage_float = float(dosage_g_l)
-                    print(f"   ✅ Converted to float: {dosage_float}")
+                    print(f"   [SUCCESS] Converted to float: {dosage_float}")
                     
                     if dosage_float > 0.0001:
-                        print(f"   ✅ ACTIVE: Above threshold (0.0001)")
+                        print(f"   [SUCCESS] ACTIVE: Above threshold (0.0001)")
                         active_fertilizers += 1
                         total_dosage += dosage_float
                     else:
-                        print(f"   ⚠️  INACTIVE: Below threshold ({dosage_float:.8f} < 0.0001)")
+                        print(f"   [WARNING]  INACTIVE: Below threshold ({dosage_float:.8f} < 0.0001)")
                         
                 except (ValueError, TypeError) as e:
-                    print(f"   ❌ Conversion failed: {e}")
+                    print(f"   [ERROR] Conversion failed: {e}")
             
             # Check for other possible dosage keys
             for key in ['dosage_g_L', 'dosage', 'dosage_ml_per_L']:
@@ -80,10 +80,10 @@ def diagnose_fertilizer_dosages(calculation_results):
                 pass
         
         else:
-            print(f"   ❌ Unknown data type: {type(dosage_info)}")
+            print(f"   [ERROR] Unknown data type: {type(dosage_info)}")
     
     # 4. Summary
-    print("\n📊 SUMMARY:")
+    print("\n[?] SUMMARY:")
     print("-" * 30)
     print(f"Total fertilizers: {len(fertilizer_dosages)}")
     print(f"Active fertilizers (>0.0001 g/L): {active_fertilizers}")
@@ -91,11 +91,11 @@ def diagnose_fertilizer_dosages(calculation_results):
     print(f"Total dosage: {total_dosage:.6f} g/L")
     
     # 5. Recommendations
-    print("\n🔧 RECOMMENDATIONS:")
+    print("\n[?] RECOMMENDATIONS:")
     print("-" * 30)
     
     if active_fertilizers == 0:
-        print("❌ NO ACTIVE FERTILIZERS FOUND!")
+        print("[ERROR] NO ACTIVE FERTILIZERS FOUND!")
         print("   This explains why fertilizer rows are missing from PDF")
         print("   Possible causes:")
         print("   1. Calculation method returned zero/very small dosages")
@@ -109,13 +109,13 @@ def diagnose_fertilizer_dosages(calculation_results):
         print("   - Add debug fertilizers with non-zero values")
     
     elif active_fertilizers < 3:
-        print("⚠️  FEW ACTIVE FERTILIZERS")
+        print("[WARNING]  FEW ACTIVE FERTILIZERS")
         print("   This might indicate calculation issues")
         print("   - Check if optimization converged properly")
         print("   - Verify fertilizer database compositions")
     
     else:
-        print("✅ GOOD: Multiple active fertilizers found")
+        print("[SUCCESS] GOOD: Multiple active fertilizers found")
         print("   PDF should show fertilizer rows if extraction is working")
     
     print("\n" + "=" * 60)
@@ -151,7 +151,7 @@ def test_diagnostic():
 if __name__ == "__main__":
     test_diagnostic()
     
-    print("\n🚀 TO USE THIS DIAGNOSTIC:")
+    print("\n[?] TO USE THIS DIAGNOSTIC:")
     print("1. Import this function in your main code")
     print("2. Call diagnose_fertilizer_dosages(calculation_results) before PDF generation")
     print("3. Check the output to understand why fertilizer rows are missing")

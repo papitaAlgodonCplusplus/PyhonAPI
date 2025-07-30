@@ -787,10 +787,12 @@ class EnhancedPDFReportGenerator:
             return []
 
         elements = []
+        print("DEBUG: calculation_data: ", calculation_data)  # Debugging line
         calc_results = calculation_data.get('calculation_results', {})
 
         # Enhanced Verification Results Table including micronutrients
         verification_results = calc_results.get('verification_results', [])
+        print(f"DEBUG: Verification Results: {verification_results}")  # Debugging line
         if verification_results:
             elements.append(Spacer(1, 20))
             elements.append(Paragraph("<b>RESULTADOS DE VERIFICACIÓN NUTRICIONAL COMPLETA</b>",

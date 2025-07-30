@@ -7,7 +7,7 @@ This document provides sample responses from the Swagger API endpoints used in t
 http://162.248.52.111:8082
 ```
 
-## 🔐 Authentication
+## [INFO] Authentication
 All API calls require Bearer token authentication:
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -42,7 +42,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 🧪 Fertilizer API
+## [INFO] Fertilizer API
 
 ### GET `/Fertilizer?CatalogId={catalog_id}&IncludeInactives={boolean}`
 **Purpose**: Get all fertilizers from a specific catalog
@@ -171,7 +171,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 🎯 Crop Phase Solution Requirements API
+## [TARGET] Crop Phase Solution Requirements API
 
 ### GET `/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}`
 **Purpose**: Get target nutrient concentrations for a crop growth phase
@@ -244,7 +244,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 💧 Water Chemistry API
+## [WATER] Water Chemistry API
 
 ### GET `/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}`
 **Purpose**: Get water source analysis data
@@ -320,7 +320,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 🔄 API Usage Workflow
+## [INFO] API Usage Workflow
 
 ### Typical Integration Flow:
 1. **Get Catalogs**: `GET /Catalog` → Select catalog ID
@@ -338,7 +338,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## ⚠️ Known Issues
+## [WARNING] Known Issues
 
 ### Missing Fertilizer Chemistry Data
 The test results show fertilizers with zero nutrients because:
@@ -359,7 +359,7 @@ The test results show fertilizers with zero nutrients because:
 
 ---
 
-## 🚀 Next Steps
+## [INFO] Next Steps
 
 1. **Implement FertilizerChemistry calls** for each fertilizer
 2. **Test with complete nutrient data** 

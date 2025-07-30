@@ -1,8 +1,8 @@
-# 🧪 Fertilizer Calculator API
+# [INFO] Fertilizer Calculator API
 
 A Python FastAPI application that calculates optimal fertilizer dosages for hydroponic/fertigation systems. This API integrates with your Swagger API to retrieve fertilizer catalogs, crop requirements, and water analysis data.
 
-## 🎯 Features
+## [TARGET] Features
 
 - **Fertilizer Optimization**: Calculate optimal dosages for multiple fertilizers
 - **Nutrient Balance**: Ensure target concentrations for all essential elements
@@ -18,7 +18,7 @@ A Python FastAPI application that calculates optimal fertilizer dosages for hydr
 - **Anions**: NO₃-N, SO₄-S, Cl⁻, H₂PO₄-P, HCO₃⁻
 - **Additional**: EC, pH calculations
 
-## 🚀 Quick Start
+## [INFO] Quick Start
 
 ### 1. Setup
 
@@ -59,7 +59,7 @@ Once the server is running, visit:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
-## 🔧 Configuration
+## [INFO] Configuration
 
 ### Swagger API Connection
 
@@ -80,7 +80,7 @@ If your Swagger API requires authentication:
 2. Add it to the `auth_token` parameter
 3. The client will automatically include it in headers
 
-## 📊 Usage Examples
+## [SECTION] Usage Examples
 
 ### Basic Calculation Request
 
@@ -154,7 +154,7 @@ print(response.json())
 }
 ```
 
-## 🔬 Available Endpoints
+## [INFO] Available Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -163,7 +163,7 @@ print(response.json())
 | `/docs` | GET | API documentation |
 | `/health` | GET | Health check |
 
-## 🧪 Testing
+## [INFO] Testing
 
 ### Run All Tests
 
@@ -188,7 +188,7 @@ await tester.run_fallback_test()
 
 1. **Swagger API Connection Failed**
    ```
-   ❌ Failed to connect to Swagger API: Connection refused
+   [FAILED] Failed to connect to Swagger API: Connection refused
    ```
    - Check if the Swagger API is running
    - Verify the URL: `http://162.248.52.111:8082`
@@ -196,14 +196,14 @@ await tester.run_fallback_test()
 
 2. **Calculator API Not Running**
    ```
-   ❌ Calculator API not running
+   [FAILED] Calculator API not running
    ```
    - Start the API: `python fertilizer_calculator_api.py`
    - Check port 8000 is available
 
 3. **Optimization Failed**
    ```
-   ❌ Calculation error: Optimization failed
+   [FAILED] Calculation error: Optimization failed
    ```
    - Check fertilizer compositions are valid
    - Ensure target concentrations are achievable
@@ -245,7 +245,7 @@ async def get_targets():
 3. Add tests for new functionality
 4. Submit a pull request
 
-## 📄 License
+## [INFO] License
 
 MIT License - see LICENSE file for details
 
@@ -259,7 +259,7 @@ For issues or questions:
 
 ---
 
-## 🎯 Expected Excel Output Mapping
+## [TARGET] Expected Excel Output Mapping
 
 | Excel Column | API Response Field | Units |
 |-------------|-------------------|-------|
@@ -271,4 +271,4 @@ For issues or questions:
 | EC | `final_solution.calculated_EC` | dS/m |
 | pH | `final_solution.calculated_pH` | - |
 
-This API replicates your Excel calculations with the same precision and methodology! 🎉
+This API replicates your Excel calculations with the same precision and methodology! [SUCCESS]

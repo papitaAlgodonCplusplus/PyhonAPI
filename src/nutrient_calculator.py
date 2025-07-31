@@ -500,29 +500,37 @@ class EnhancedFertilizerCalculator:
         contribution = fertilizer_amount * element_weight_percent * (purity / 100.0) / 100.0
         return contribution
 
+    
     def convert_mg_to_mmol(self, mg_l: float, element: str) -> float:
-        """Convert mg/L to mmol/L"""
-        element_data = {
-            'N': 14.01, 'P': 30.97, 'K': 39.10, 'Ca': 40.08, 'Mg': 24.31, 'S': 32.06,
-            'Cl': 35.45, 'Na': 22.99, 'NH4': 18.04, 'HCO3': 61.02,
-            'Fe': 55.85, 'Mn': 54.94, 'Zn': 65.38, 'Cu': 63.55, 'B': 10.81, 'Mo': 95.96
+        """Convert mg/L to mmol/L using atomic weights"""
+        atomic_weights = {
+            'Ca': 40.08, 'K': 39.10, 'Mg': 24.31, 'Na': 22.99, 'NH4': 18.04,
+            'N': 14.01, 'S': 32.06, 'Cl': 35.45, 'P': 30.97, 'HCO3': 61.02,
+            'Fe': 55.85, 'Mn': 54.94, 'Zn': 65.38, 'Cu': 63.55, 'B': 10.81, 'Mo': 95.95
         }
         
-        if element in element_data and mg_l > 0:
-            return mg_l / element_data[element]
-        return 0.0
+        if element in atomic_weights and atomic_weights[element] > 0:
+            mmol_l = mg_l / atomic_weights[element]
+            return mmol_l
+        else:
+            print(f"[WARNING] Unknown element {element} for mmol conversion")
+            return 0.0
 
     def convert_mmol_to_meq(self, mmol_l: float, element: str) -> float:
-        """Convert mmol/L to meq/L"""
-        element_valences = {
-            'N': 1, 'P': 3, 'K': 1, 'Ca': 2, 'Mg': 2, 'S': 2, 'Cl': 1, 'Na': 1, 'NH4': 1, 'HCO3': 1,
+        """Convert mmol/L to meq/L using charge states"""
+        charges = {
+            'Ca': 2, 'K': 1, 'Mg': 2, 'Na': 1, 'NH4': 1,
+            'N': 1, 'S': 2, 'Cl': 1, 'P': 1, 'HCO3': 1,
             'Fe': 2, 'Mn': 2, 'Zn': 2, 'Cu': 2, 'B': 3, 'Mo': 6
         }
         
-        if element in element_valences and mmol_l > 0:
-            return mmol_l * element_valences[element]
-        return 0.0
-
+        if element in charges:
+            meq_l = mmol_l * charges[element]
+            return meq_l
+        else:
+            print(f"[WARNING] Unknown element {element} for meq conversion")
+            return 0.0
+        
     def convert_mg_to_meq_direct(self, mg_l: float, element: str) -> float:
         """
         Direct conversion from mg/L to meq/L for ionic balance calculations

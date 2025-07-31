@@ -321,10 +321,10 @@ class CompleteFertilizerCalculator:
         
         return enhanced_fertilizers
 
-    def calculate_nutrient_contributions(self, dosages_g_l: Dict[str, float], 
-                                       fertilizers: List, volume_liters: float):
-        """Calculate nutrient contributions from fertilizers"""
-        elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'N', 'SO4', 'S', 'Cl', 'H2PO4', 'P', 'HCO3', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
+        
+    def calculate_nutrient_contributions(self, dosages_g_l: Dict[str, float], fertilizers: List):
+        """Calculate nutrient contributions from fertilizers with proper calculations"""
+        elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'N', 'S', 'Cl', 'P', 'HCO3', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
         
         contributions = {
             'APORTE_mg_L': {elem: 0.0 for elem in elements},
@@ -334,10 +334,13 @@ class CompleteFertilizerCalculator:
 
         fert_map = {f.name: f for f in fertilizers}
 
+        # Calculate contributions for each active fertilizer
         for fert_name, dosage_g_l in dosages_g_l.items():
             if dosage_g_l > 0 and fert_name in fert_map:
                 fertilizer = fert_map[fert_name]
-                dosage_mg_l = dosage_g_l * 1000
+                dosage_mg_l = dosage_g_l * 1000  # Convert g/L to mg/L
+
+                print(f"  Processing {fert_name}: {dosage_g_l:.4f} g/L ({dosage_mg_l:.1f} mg/L)")
 
                 # Calculate contributions from cations
                 for element, content_percent in fertilizer.composition.cations.items():
@@ -346,6 +349,7 @@ class CompleteFertilizerCalculator:
                             dosage_mg_l, content_percent, fertilizer.chemistry.purity
                         )
                         contributions['APORTE_mg_L'][element] += contribution
+                        print(f"    {element} (cation): +{contribution:.3f} mg/L")
 
                 # Calculate contributions from anions  
                 for element, content_percent in fertilizer.composition.anions.items():
@@ -354,8 +358,9 @@ class CompleteFertilizerCalculator:
                             dosage_mg_l, content_percent, fertilizer.chemistry.purity
                         )
                         contributions['APORTE_mg_L'][element] += contribution
+                        print(f"    {element} (anion): +{contribution:.3f} mg/L")
 
-        # Convert to mmol/L and meq/L
+        # Convert to mmol/L and meq/L with proper calculations
         for element in elements:
             mg_l = contributions['APORTE_mg_L'][element]
             mmol_l = self.nutrient_calc.convert_mg_to_mmol(mg_l, element)
@@ -364,6 +369,9 @@ class CompleteFertilizerCalculator:
             contributions['APORTE_mg_L'][element] = round(mg_l, 3)
             contributions['APORTE_mmol_L'][element] = round(mmol_l, 3)
             contributions['APORTE_meq_L'][element] = round(meq_l, 3)
+
+            if mg_l > 0:
+                print(f"  Total {element}: {mg_l:.3f} mg/L = {mmol_l:.3f} mmol/L = {meq_l:.3f} meq/L")
 
         return contributions
 
@@ -1315,10 +1323,11 @@ async def root():
 
 
 def adjust_targets_for_water_chemistry(target_concentrations: Dict[str, float], 
-                                      water_analysis: Dict[str, float]) -> tuple[Dict[str, float], Dict[str, float]]:
+                                     water_analysis: Dict[str, float]) -> tuple[Dict[str, float], Dict[str, float]]:
     """
     CORRECTED: Target concentrations are ADDITIVE to water chemistry.
     The API provides fertilizer contribution targets, not final concentration targets.
+    FIXED: Ensure no negative fertilizer targets by respecting water chemistry minimums.
     
     Args:
         target_concentrations: Fertilizer contribution targets (mg/L to add above water)
@@ -1327,34 +1336,45 @@ def adjust_targets_for_water_chemistry(target_concentrations: Dict[str, float],
     Returns:
         Tuple of (fertilizer_targets, expected_final_concentrations)
     """
-    fertilizer_targets = target_concentrations.copy()  # These are already fertilizer targets!
+    fertilizer_targets = {}
     expected_final_concentrations = {}
     
     print(f"\n[WATER] INTERPRETING TARGETS AS ADDITIVE TO WATER CHEMISTRY:")
-    print(f"{'Nutrient':<8} | {'Fertilizer':<10} | {'Water':<8} | {'Final':<8} | {'Status'}")
-    print(f"{'':^8} | {'Target':<10} | {'Baseline':<8} | {'Expected':<8} | {''}")
-    print(f"{'-'*65}")
+    print(f"{'Nutrient':<8} | {'Original':<10} | {'Water':<8} | {'Adjusted':<10} | {'Final':<8} | {'Status'}")
+    print(f"{'':^8} | {'Target':<10} | {'Baseline':<8} | {'Fertilizer':<10} | {'Expected':<8} | {''}")
+    print(f"{'-'*75}")
     
-    for nutrient, fertilizer_target in target_concentrations.items():
+    for nutrient, original_target in target_concentrations.items():
         water_content = water_analysis.get(nutrient, 0.0)
+        
+        # CRITICAL FIX: Ensure fertilizer targets are never negative
+        # If target is less than water content, fertilizer should provide 0
+        # The final concentration will be at least the water baseline
+        fertilizer_target = max(0.0, original_target - water_content)
         
         # Calculate expected final concentration
         expected_final = water_content + fertilizer_target
         expected_final_concentrations[nutrient] = expected_final
+        fertilizer_targets[nutrient] = fertilizer_target
         
-        # Determine status
-        if fertilizer_target == 0:
+        # Determine status and any adjustments made
+        if original_target < water_content:
+            status = f"ADJUSTED (was {original_target:.1f})"
+            print(f"{nutrient:<8} | {original_target:<10.3f} | {water_content:<8.3f} | {fertilizer_target:<10.3f} | {expected_final:<8.3f} | {status}")
+        elif fertilizer_target == 0:
             status = "Water Only"
+            print(f"{nutrient:<8} | {original_target:<10.3f} | {water_content:<8.3f} | {fertilizer_target:<10.3f} | {expected_final:<8.3f} | {status}")
         elif water_content == 0:
             status = "Fertilizers Only"
+            print(f"{nutrient:<8} | {original_target:<10.3f} | {water_content:<8.3f} | {fertilizer_target:<10.3f} | {expected_final:<8.3f} | {status}")
         else:
             status = "Water + Fertilizers"
-        
-        print(f"{nutrient:<8} | {fertilizer_target:<10.3f} | {water_content:<8.3f} | {expected_final:<8.3f} | {status}")
+            print(f"{nutrient:<8} | {original_target:<10.3f} | {water_content:<8.3f} | {fertilizer_target:<10.3f} | {expected_final:<8.3f} | {status}")
     
-    print(f"{'-'*65}")
+    print(f"{'-'*75}")
     print(f"[INFO] Fertilizer targets are additive to water baseline")
     print(f"[INFO] Final concentration = Water baseline + Fertilizer contribution")
+    print(f"[FIXED] No negative fertilizer targets - minimum is 0 mg/L")
     
     return fertilizer_targets, expected_final_concentrations
 

@@ -828,10 +828,15 @@ async def swagger_integrated_calculation_with_linear_programming(
                 print(f"[INFO] Solver: PuLP → SciPy fallback")
                 print(f"[INFO] Constraints: Individual ≤5g/L, Total ≤15g/L")
                 
+                # BEFORE optimization, adjust targets for water chemistry
+                print(f"\n[INFO] ADJUSTING TARGETS FOR WATER CHEMISTRY...")
+                adjusted_targets_tuple = adjust_targets_for_water_chemistry(target_concentrations, water_analysis)
+                adjusted_targets = adjusted_targets_tuple[0]  # Extract the fertilizer targets dict from tuple
+
                 # Use Linear Programming Optimizer
                 lp_result = lp_optimizer.optimize_fertilizer_solution(
                     fertilizers=enhanced_fertilizers,
-                    target_concentrations=target_concentrations,
+                    target_concentrations=adjusted_targets,
                     water_analysis=water_analysis,
                     volume_liters=volume_liters,
                     apply_safety_caps=apply_safety_caps,
@@ -1308,6 +1313,50 @@ async def root():
         "ml_ready": ml_optimizer.is_trained if ml_optimizer else False
     }
 
+
+def adjust_targets_for_water_chemistry(target_concentrations: Dict[str, float], 
+                                      water_analysis: Dict[str, float]) -> tuple[Dict[str, float], Dict[str, float]]:
+    """
+    CORRECTED: Target concentrations are ADDITIVE to water chemistry.
+    The API provides fertilizer contribution targets, not final concentration targets.
+    
+    Args:
+        target_concentrations: Fertilizer contribution targets (mg/L to add above water)
+        water_analysis: Water chemistry analysis (mg/L baseline)
+    
+    Returns:
+        Tuple of (fertilizer_targets, expected_final_concentrations)
+    """
+    fertilizer_targets = target_concentrations.copy()  # These are already fertilizer targets!
+    expected_final_concentrations = {}
+    
+    print(f"\n[WATER] INTERPRETING TARGETS AS ADDITIVE TO WATER CHEMISTRY:")
+    print(f"{'Nutrient':<8} | {'Fertilizer':<10} | {'Water':<8} | {'Final':<8} | {'Status'}")
+    print(f"{'':^8} | {'Target':<10} | {'Baseline':<8} | {'Expected':<8} | {''}")
+    print(f"{'-'*65}")
+    
+    for nutrient, fertilizer_target in target_concentrations.items():
+        water_content = water_analysis.get(nutrient, 0.0)
+        
+        # Calculate expected final concentration
+        expected_final = water_content + fertilizer_target
+        expected_final_concentrations[nutrient] = expected_final
+        
+        # Determine status
+        if fertilizer_target == 0:
+            status = "Water Only"
+        elif water_content == 0:
+            status = "Fertilizers Only"
+        else:
+            status = "Water + Fertilizers"
+        
+        print(f"{nutrient:<8} | {fertilizer_target:<10.3f} | {water_content:<8.3f} | {expected_final:<8.3f} | {status}")
+    
+    print(f"{'-'*65}")
+    print(f"[INFO] Fertilizer targets are additive to water baseline")
+    print(f"[INFO] Final concentration = Water baseline + Fertilizer contribution")
+    
+    return fertilizer_targets, expected_final_concentrations
 
 def add_required_micronutrient_fertilizers(api_fertilizers: List, 
                                          target_concentrations: Dict[str, float], 

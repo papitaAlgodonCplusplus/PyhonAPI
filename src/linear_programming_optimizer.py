@@ -9,7 +9,6 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 import time
 
-# Linear Programming imports with fallbacks
 try:
     import pulp as lp
     PULP_AVAILABLE = True
@@ -103,16 +102,27 @@ class LinearProgrammingOptimizer:
         print(f"Average deviation: {np.mean(list(result.deviations_percent.values())):.2f}%")
         
         return result
+ 
     
     def _optimize_with_pulp(self, 
-                           fertilizers: List,
-                           targets: Dict[str, float],
-                           water: Dict[str, float],
-                           volume_liters: float) -> LinearProgrammingResult:
+                        fertilizers: List,
+                        targets: Dict[str, float],
+                        water: Dict[str, float],
+                        volume_liters: float) -> LinearProgrammingResult:
         """
         Optimize using PuLP linear programming solver
+        CORRECTED: Targets are fertilizer contribution goals, not final concentration goals
         """
         print(f"[LP] Using PuLP solver for optimization...")
+        
+        # CORRECTED: Targets are already fertilizer targets (additive to water)
+        fertilizer_targets = targets.copy()  # These are already what fertilizers should provide
+        
+        print(f"\n[LP] FERTILIZER CONTRIBUTION TARGETS:")
+        for nutrient, fertilizer_target in fertilizer_targets.items():
+            water_contribution = water.get(nutrient, 0.0)
+            expected_final = water_contribution + fertilizer_target
+            print(f"  {nutrient}: Fertilizer={fertilizer_target:.3f} + Water={water_contribution:.3f} = Final={expected_final:.3f} mg/L")
         
         # Create the problem
         prob = lp.LpProblem("Fertilizer_Optimization", lp.LpMinimize)
@@ -126,7 +136,7 @@ class LinearProgrammingOptimizer:
         # Deviation variables for each nutrient (both positive and negative)
         deviation_vars_pos = {}
         deviation_vars_neg = {}
-        for nutrient in targets.keys():
+        for nutrient in fertilizer_targets.keys():
             var_name = nutrient.replace(' ', '_')
             deviation_vars_pos[nutrient] = lp.LpVariable(f"dev_pos_{var_name}", lowBound=0)
             deviation_vars_neg[nutrient] = lp.LpVariable(f"dev_neg_{var_name}", lowBound=0)
@@ -135,8 +145,8 @@ class LinearProgrammingOptimizer:
         objective = 0
         
         # 1. Minimize nutrient deviations (highest priority)
-        for nutrient in targets.keys():
-            target_value = targets[nutrient]
+        for nutrient in fertilizer_targets.keys():
+            target_value = fertilizer_targets[nutrient]
             if target_value > 0:
                 weight = self.objective_weights['deviation_minimization'] / target_value
                 objective += weight * (deviation_vars_pos[nutrient] + deviation_vars_neg[nutrient])
@@ -150,11 +160,10 @@ class LinearProgrammingOptimizer:
         # Constraints
         
         # 1. Nutrient balance constraints with deviations
-        for nutrient in targets.keys():
-            target_mg_l = targets[nutrient]
-            water_contribution = water.get(nutrient, 0.0)
+        for nutrient in fertilizer_targets.keys():
+            fertilizer_target = fertilizer_targets[nutrient]
             
-            # Calculate total contribution from fertilizers
+            # Calculate total contribution from fertilizers only (no water)
             fertilizer_contribution = 0
             for fert in fertilizers:
                 dosage_var = dosage_vars[fert.name]
@@ -169,12 +178,9 @@ class LinearProgrammingOptimizer:
                     contribution_factor = total_content * fert.chemistry.purity / 100.0 * 1000.0 / 100.0
                     fertilizer_contribution += dosage_var * contribution_factor
             
-            # Total achieved = water + fertilizer contributions
-            total_achieved = water_contribution + fertilizer_contribution
-            
             # Balance equation with deviations
-            # total_achieved = target + deviation_pos - deviation_neg
-            prob += (total_achieved == target_mg_l + deviation_vars_pos[nutrient] - deviation_vars_neg[nutrient])
+            # fertilizer_contribution = fertilizer_target + deviation_pos - deviation_neg
+            prob += (fertilizer_contribution == fertilizer_target + deviation_vars_pos[nutrient] - deviation_vars_neg[nutrient])
         
         # 2. Maximum dosage constraints
         for var in dosage_vars.values():
@@ -183,129 +189,131 @@ class LinearProgrammingOptimizer:
         # 3. Maximum total dosage constraint
         prob += lp.lpSum(dosage_vars.values()) <= self.max_total_dosage
         
-        # 4. Minimum significant dosage (avoid tiny amounts)
-        for var in dosage_vars.values():
-            # If used, use at least 0.001 g/L (will be handled in post-processing)
-            pass
+        # 4. Non-negativity constraints for deviations (already handled by lowBound=0)
         
         # Solve the problem
-        print(f"[LP] Solving linear program with {len(dosage_vars)} variables...")
-        
-        # Try multiple solvers for robustness
-        solvers_to_try = [lp.PULP_CBC_CMD, lp.GLPK_CMD, lp.CPLEX_CMD]
-        
-        solution_found = False
-        for solver_class in solvers_to_try:
-            try:
-                solver = solver_class(msg=0)  # Silent mode
-                prob.solve(solver)
+        try:
+            print(f"[LP] Solving linear programming problem...")
+            prob.solve(lp.PULP_CBC_CMD(msg=0))
+            
+            if prob.status == lp.LpStatusOptimal:
+                print(f"[LP] PuLP optimization successful!")
+                print(f"[LP] Status: {lp.LpStatus[prob.status]}")
                 
-                if prob.status == lp.LpStatusOptimal:
-                    solution_found = True
-                    print(f"[LP] Optimal solution found using {solver_class.__name__}")
-                    break
-                else:
-                    print(f"[LP] {solver_class.__name__} failed: {lp.LpStatus[prob.status]}")
-            except Exception as e:
-                print(f"[LP] {solver_class.__name__} error: {e}")
-                continue
+                # Extract dosages
+                dosages = {}
+                for fert_name, var in dosage_vars.items():
+                    dosage_value = var.varValue if var.varValue is not None else 0.0
+                    dosages[fert_name] = max(0.0, dosage_value)
+                
+                # Calculate achieved concentrations (this adds water + fertilizer contributions)
+                achieved_concentrations = self._calculate_achieved_concentrations(
+                    dosages, water, fertilizers
+                )
+                
+                # Calculate deviations against EXPECTED FINAL CONCENTRATIONS
+                deviations_percent = {}
+                for nutrient in targets.keys():
+                    fertilizer_target = targets[nutrient]
+                    water_contribution = water.get(nutrient, 0.0)
+                    expected_final = water_contribution + fertilizer_target
+                    achieved = achieved_concentrations.get(nutrient, 0.0)
+                    
+                    if expected_final > 0:
+                        deviation = ((achieved - expected_final) / expected_final) * 100.0
+                    else:
+                        deviation = 0.0
+                    deviations_percent[nutrient] = deviation
+                
+                # Calculate ionic balance
+                ionic_balance_error = self._calculate_ionic_balance_error(achieved_concentrations)
+                
+                # Clean up tiny dosages
+                min_threshold = 0.001
+                cleaned_dosages = {}
+                for name, dosage in dosages.items():
+                    cleaned_dosages[name] = dosage if dosage >= min_threshold else 0.0
+                
+                active_fertilizers = len([d for d in cleaned_dosages.values() if d > 0])
+                total_dosage = sum(cleaned_dosages.values())
+                
+                return LinearProgrammingResult(
+                    dosages_g_per_L=cleaned_dosages,
+                    achieved_concentrations=achieved_concentrations,
+                    deviations_percent=deviations_percent,
+                    optimization_status="Optimal",
+                    objective_value=lp.value(prob.objective),
+                    ionic_balance_error=ionic_balance_error,
+                    solver_time_seconds=0.0,  # Will be set by caller
+                    active_fertilizers=active_fertilizers,
+                    total_dosage=total_dosage
+                )
+            
+            else:
+                print(f"[LP] PuLP optimization failed!")
+                print(f"[LP] Status: {lp.LpStatus[prob.status]}")
+                
+        except Exception as e:
+            print(f"[LP] PuLP optimization error: {e}")
+
         
-        if not solution_found:
-            print(f"[LP] All solvers failed, trying default solver...")
-            prob.solve()
-            solution_found = prob.status == lp.LpStatusOptimal
-        
-        # Extract results
-        if solution_found:
-            print(f"[LP] Optimization successful! Status: {lp.LpStatus[prob.status]}")
-            
-            # Extract dosages
-            dosages = {}
-            for fert_name, var in dosage_vars.items():
-                dosage_value = var.varValue if var.varValue is not None else 0.0
-                dosages[fert_name] = max(0.0, dosage_value)
-            
-            # Calculate achieved concentrations and deviations
-            achieved_concentrations = self._calculate_achieved_concentrations(
-                dosages, water, fertilizers
-            )
-            
-            deviations_percent = {}
-            for nutrient, target in targets.items():
-                achieved = achieved_concentrations.get(nutrient, 0.0)
-                if target > 0:
-                    deviation = ((achieved - target) / target) * 100.0
-                else:
-                    deviation = 0.0
-                deviations_percent[nutrient] = deviation
-            
-            # Calculate ionic balance
-            ionic_balance_error = self._calculate_ionic_balance_error(achieved_concentrations)
-            
-            # Clean up tiny dosages
-            min_threshold = 0.001
-            cleaned_dosages = {}
-            for name, dosage in dosages.items():
-                cleaned_dosages[name] = dosage if dosage >= min_threshold else 0.0
-            
-            active_fertilizers = len([d for d in cleaned_dosages.values() if d > 0])
-            total_dosage = sum(cleaned_dosages.values())
-            
-            return LinearProgrammingResult(
-                dosages_g_per_L=cleaned_dosages,
-                achieved_concentrations=achieved_concentrations,
-                deviations_percent=deviations_percent,
-                optimization_status="Optimal",
-                objective_value=lp.value(prob.objective),
-                ionic_balance_error=ionic_balance_error,
-                solver_time_seconds=0.0,  # Will be set by caller
-                active_fertilizers=active_fertilizers,
-                total_dosage=total_dosage
-            )
-        
-        else:
-            print(f"[LP] Optimization failed: {lp.LpStatus[prob.status]}")
-            return self._create_fallback_result(fertilizers, targets, water)
-    
     def _optimize_with_scipy(self, 
                             fertilizers: List,
                             targets: Dict[str, float],
                             water: Dict[str, float],
                             volume_liters: float) -> LinearProgrammingResult:
         """
-        Optimize using SciPy optimization (fallback method)
+        Optimize using SciPy optimization
+        FIXED: Now optimizes for fertilizer contribution only, not total target
         """
         print(f"[LP] Using SciPy solver for optimization...")
         
+        # CRITICAL FIX: Adjust targets to account for water chemistry
+        fertilizer_targets = {}
+        print(f"\n[LP] ADJUSTING TARGETS FOR WATER CHEMISTRY:")
+        for nutrient, total_target in targets.items():
+            water_contribution = water.get(nutrient, 0.0)
+            fertilizer_target = max(0.0, total_target - water_contribution)
+            fertilizer_targets[nutrient] = fertilizer_target
+            
+            if water_contribution > 0:
+                print(f"  {nutrient}: Total={total_target:.3f} - Water={water_contribution:.3f} = Fertilizer={fertilizer_target:.3f} mg/L")
+            else:
+                print(f"  {nutrient}: Total={total_target:.3f} mg/L (no water contribution)")
+        
+        # Create matrices for linear programming
+        nutrient_list = list(fertilizer_targets.keys())  # FIXED: Use fertilizer targets
+        n_nutrients = len(nutrient_list)
         n_fertilizers = len(fertilizers)
-        n_nutrients = len(targets)
         
-        # Decision variables: [dosage_1, dosage_2, ..., dosage_n]
+        if n_fertilizers == 0 or n_nutrients == 0:
+            print("HYPERFAILED")
+            exit(1)
         
-        # Build coefficient matrix for nutrient contributions
-        # A[i,j] = contribution of fertilizer j to nutrient i per g/L
+        # Build coefficient matrix A where A[i,j] = contribution of fertilizer j to nutrient i
         A_matrix = np.zeros((n_nutrients, n_fertilizers))
-        nutrient_list = list(targets.keys())
         
         for i, nutrient in enumerate(nutrient_list):
-            for j, fert in enumerate(fertilizers):
-                cation_content = fert.composition.cations.get(nutrient, 0.0)
-                anion_content = fert.composition.anions.get(nutrient, 0.0)
+            for j, fertilizer in enumerate(fertilizers):
+                # Get nutrient content from fertilizer composition
+                cation_content = fertilizer.composition.cations.get(nutrient, 0.0)
+                anion_content = fertilizer.composition.anions.get(nutrient, 0.0)
                 total_content = cation_content + anion_content
                 
                 if total_content > 0:
-                    # Convert to mg/L contribution per g/L dosage
-                    contribution_factor = total_content * fert.chemistry.purity / 100.0 * 1000.0 / 100.0
+                    # Calculate contribution factor: g/L → mg/L
+                    contribution_factor = total_content * fertilizer.chemistry.purity / 100.0 * 1000.0 / 100.0
                     A_matrix[i, j] = contribution_factor
         
         # Objective function: minimize sum of squared deviations
         def objective(x):
             dosages = x
-            achieved = A_matrix @ dosages + np.array([water.get(nutrient, 0.0) for nutrient in nutrient_list])
-            targets_array = np.array([targets[nutrient] for nutrient in nutrient_list])
+            # Calculate fertilizer contributions only (no water added here)
+            achieved_fertilizer = A_matrix @ dosages
+            fertilizer_targets_array = np.array([fertilizer_targets[nutrient] for nutrient in nutrient_list])
             
-            # Calculate weighted deviations
-            deviations = np.abs(achieved - targets_array) / np.maximum(targets_array, 1e-6)
+            # Calculate weighted deviations against fertilizer targets
+            deviations = np.abs(achieved_fertilizer - fertilizer_targets_array) / np.maximum(fertilizer_targets_array, 1e-6)
             
             # Primary objective: minimize deviations
             deviation_penalty = np.sum(deviations ** 2) * self.objective_weights['deviation_minimization']
@@ -339,21 +347,23 @@ class LinearProgrammingOptimizer:
             if result.success:
                 print(f"[LP] SciPy optimization successful!")
                 
+                # Extract dosages
                 dosages = {}
                 for i, fert in enumerate(fertilizers):
                     dosage_value = max(0.0, result.x[i])
                     dosages[fert.name] = dosage_value
                 
-                # Calculate achieved concentrations and deviations
+                # Calculate achieved concentrations (this adds water + fertilizer contributions)
                 achieved_concentrations = self._calculate_achieved_concentrations(
                     dosages, water, fertilizers
                 )
                 
+                # Calculate deviations against ORIGINAL TARGETS (not fertilizer targets)
                 deviations_percent = {}
-                for nutrient, target in targets.items():
+                for nutrient, original_target in targets.items():  # FIXED: Use original targets for reporting
                     achieved = achieved_concentrations.get(nutrient, 0.0)
-                    if target > 0:
-                        deviation = ((achieved - target) / target) * 100.0
+                    if original_target > 0:
+                        deviation = ((achieved - original_target) / original_target) * 100.0
                     else:
                         deviation = 0.0
                     deviations_percent[nutrient] = deviation
@@ -384,12 +394,11 @@ class LinearProgrammingOptimizer:
             
             else:
                 print(f"[LP] SciPy optimization failed: {result.message}")
-                return self._create_fallback_result(fertilizers, targets, water)
-                
+                exit(1)                
         except Exception as e:
             print(f"[LP] SciPy optimization error: {e}")
-            return self._create_fallback_result(fertilizers, targets, water)
-    
+            exit(1)
+            
     def _calculate_achieved_concentrations(self, 
                                          dosages: Dict[str, float],
                                          water: Dict[str, float],
@@ -446,54 +455,3 @@ class LinearProgrammingOptimizer:
             
         except Exception:
             return 0.0
-    
-    def _create_fallback_result(self, 
-                               fertilizers: List,
-                               targets: Dict[str, float],
-                               water: Dict[str, float]) -> LinearProgrammingResult:
-        """Create fallback result when optimization fails"""
-        print(f"[LP] Creating fallback solution...")
-        
-        # Simple fallback: distribute dosages evenly among useful fertilizers
-        dosages = {}
-        total_budget = 3.0  # g/L total
-        
-        useful_fertilizers = []
-        for fert in fertilizers:
-            total_content = (sum(fert.composition.cations.values()) + 
-                           sum(fert.composition.anions.values()))
-            if total_content > 5:  # Has significant nutrient content
-                useful_fertilizers.append(fert)
-        
-        if useful_fertilizers:
-            dosage_per_fert = total_budget / len(useful_fertilizers)
-            for fert in useful_fertilizers:
-                dosages[fert.name] = min(dosage_per_fert, 1.0)
-        
-        # Fill with zeros for unused fertilizers
-        for fert in fertilizers:
-            if fert.name not in dosages:
-                dosages[fert.name] = 0.0
-        
-        achieved_concentrations = self._calculate_achieved_concentrations(dosages, water, fertilizers)
-        
-        deviations_percent = {}
-        for nutrient, target in targets.items():
-            achieved = achieved_concentrations.get(nutrient, 0.0)
-            if target > 0:
-                deviation = ((achieved - target) / target) * 100.0
-            else:
-                deviation = 0.0
-            deviations_percent[nutrient] = deviation
-        
-        return LinearProgrammingResult(
-            dosages_g_per_L=dosages,
-            achieved_concentrations=achieved_concentrations,
-            deviations_percent=deviations_percent,
-            optimization_status="Fallback",
-            objective_value=999999.0,
-            ionic_balance_error=self._calculate_ionic_balance_error(achieved_concentrations),
-            solver_time_seconds=0.0,
-            active_fertilizers=len([d for d in dosages.values() if d > 0]),
-            total_dosage=sum(dosages.values())
-        )

@@ -781,6 +781,16 @@ class EnhancedPDFReportGenerator:
         summary_rows.extend([row1, row2, row3, row4, row5, row6, row7, row8, row9])
         return summary_rows
 
+    def _evaluate_status(self, parameter, deviation):
+        deviation_percent = abs(deviation * 100)
+
+        if deviation_percent < 5:
+            return 'Excellent'
+        elif deviation_percent < 20:
+            return 'Deviation'
+        else:
+            return 'Low'
+
     def _create_enhanced_summary_tables(self, calculation_data: Dict[str, Any]) -> List:
         """Create enhanced summary and analysis tables with micronutrient support"""
         if not REPORTLAB_AVAILABLE:
@@ -791,7 +801,35 @@ class EnhancedPDFReportGenerator:
         calc_results = calculation_data.get('calculation_results', {})
 
         # Enhanced Verification Results Table including micronutrients
-        verification_results = calc_results.get('verification_results', [])
+        verification_results = calc_results.get('verification_results')
+        if not verification_results:
+            achieved = calc_results.get('achieved_concentrations', {})
+            deviations = calc_results.get('deviations_percent', {})
+
+            verification_results = []
+
+            for param, actual in achieved.items():
+                deviation = deviations.get(param)
+                if deviation is None:
+                    continue  # Can't calculate target
+
+                # Reverse-engineer the target: actual = target * (1 + deviation)
+                try:
+                    target = actual / (1 + deviation)
+                except ZeroDivisionError:
+                    continue  # Extremely rare, but let's be graceful
+
+                verification_results.append({
+                    'parameter': param,
+                    'target_value': target,
+                    'actual_value': actual,
+                    'percentage_deviation': deviation * 100,
+                    'status': self._evaluate_status(param, deviation)  # Or call your logic
+                })
+
+        # Optionally store it for reuse
+        calc_results['verification_results'] = verification_results
+
         print(f"DEBUG: Verification Results: {verification_results}")  # Debugging line
         if verification_results:
             elements.append(Spacer(1, 20))

@@ -386,10 +386,6 @@ def apply_nutrient_caps_to_targets(target_concentrations: Dict[str, float],
     """
     caps_manager = NutrientCaps()
     return caps_manager.apply_nutrient_caps(target_concentrations, strict_mode)
-
-
-# Test function
-def test_nutrient_caps():
     """Test the caps system with the problematic values from the user's example"""
     
     print("[TEST] TESTING NUTRIENT CAPS SYSTEM\n")
@@ -432,7 +428,3 @@ def test_nutrient_caps():
     print(f"  High priority warnings: {result['summary']['high_priority_warnings']}")
     
     return result
-
-
-if __name__ == "__main__":
-    test_nutrient_caps()

@@ -290,8 +290,7 @@ class EnhancedPDFReportGenerator:
             fertilizer_rows_added += 1
 
         # Add enhanced summary rows
-        summary_rows = self._create_enhanced_summary_rows(
-            nutrient_contributions, water_contribution, final_solution)
+        summary_rows = self._create_enhanced_summary_rows(calculation_data)
         table_data.extend(summary_rows)
 
         print(f"    Added {len(summary_rows)} enhanced summary rows")
@@ -676,16 +675,27 @@ class EnhancedPDFReportGenerator:
         }
         return valences.get(element, 0)
 
-    def _create_enhanced_summary_rows(self, nutrient_contributions: Dict, water_contribution: Dict, final_solution: Dict) -> List[List]:
-        """Create enhanced summary rows with CORRECTED calculations"""
+    def _create_enhanced_summary_rows(self, calculation_data: Dict) -> List[List]:
+        """Create enhanced summary rows with FIXED data access patterns"""
         summary_rows = []
+
+        print(f"\n=== SUMMARY CALCULATIONS DEBUG (FIXED) ===")
+        
+        # Extract data from calculation_data structure
+        calc_results = calculation_data.get('calculation_results', {})
+        integration_metadata = calculation_data.get('integration_metadata', {})
+        
+        # Get fertilizer dosages and achieved concentrations
+        fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
+        achieved_concentrations = calc_results.get('achieved_concentrations', {})
+        
+        print(f"Found fertilizer_dosages: {len(fertilizer_dosages)} fertilizers")
+        print(f"Found achieved_concentrations: {len(achieved_concentrations)} nutrients")
 
         # Enhanced element list including micronutrients
         elements_for_summary = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'NO3-', 'N', 'SO4=', 'S', 'Cl-', 'H2PO4-', 'P', 'HCO3-', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
-        anion_elements = ['NO3-', 'SO4=', 'Cl-', 'H2PO4-', 'HCO3-']
-        cation_elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
 
-        # Show non-zero values
+        # Initialize arrays for summary rows
         aporte_de_iones_mg_l = []
         aporte_de_iones_mmol_l = []
         aporte_de_iones_meq_l = []
@@ -695,53 +705,96 @@ class EnhancedPDFReportGenerator:
         iones_en_sonu_final_mg_l = []
         iones_en_sonu_final_mmol_l = []
         iones_en_sonu_final_meq_l = []
+
+        # Get fertilizer database for composition lookup
+        fertilizer_db = calculation_data.get('fertilizer_database', {})
+        
+        # Calculate nutrient contributions from fertilizers
+        fertilizer_contributions = self._calculate_fertilizer_contributions(fertilizer_dosages, fertilizer_db)
+        
+        # Get water analysis data (this should be available in the calculation context)
+        # Try to get water data from multiple possible locations
+        water_analysis = {}
+        
+        # Option 1: From integration metadata or calc results
+        if 'water_analysis' in calc_results:
+            water_analysis = calc_results['water_analysis']
+        elif hasattr(self, '_current_water_analysis'):
+            water_analysis = self._current_water_analysis
+        else:
+            # Default water analysis values (fallback)
+            water_analysis = {
+                'Ca': 10.15, 'K': 2.6, 'Mg': 4.8, 'Na': 9.4, 'NH4': 0, 'N': 1.4,
+                'S': 0, 'Cl': 1.2, 'P': 0, 'HCO3': 77, 'Fe': 0, 'Mn': 0, 
+                'Zn': 0.1, 'Cu': 0.1, 'B': 0, 'Mo': 0.01
+            }
+            print(f"[WARNING] Using default water analysis values")
+
+        print(f"Water analysis: {len(water_analysis)} parameters")
+
         for element in elements_for_summary:
-            # Get nutrient contributions
-            contribution = nutrient_contributions.get(element, 0)
-            water_contribution_value = water_contribution.get(element, 0)
-
-            # Calculate mmol/L and meq/L
-            if element in anion_elements:
-                molecular_weight = self._get_molecular_weight(element)
-                mmol_l = contribution / molecular_weight if molecular_weight > 0 else 0
-                meq_l = mmol_l * self._get_valence(element) / 1000
-            elif element in cation_elements:
-                molecular_weight = self._get_molecular_weight(element)
-                mmol_l = contribution / molecular_weight if molecular_weight > 0 else 0
-                meq_l = mmol_l * self._get_valence(element) / 1000
-            else:
-                mmol_l = meq_l = 0
-
-            aporte_de_iones_mg_l.append(contribution)
-            aporte_de_iones_mmol_l.append(mmol_l)
-            aporte_de_iones_meq_l.append(meq_l)
-
-            # Water contributions
-            water_mg_l = water_contribution_value
-            water_mmol_l = water_contribution_value / \
-                self._get_molecular_weight(element) if self._get_molecular_weight(
-                    element) > 0 else 0
-            water_meq_l = water_mmol_l * self._get_valence(element) / 1000
-
-            iones_en_el_agua_mg_l.append(water_mg_l)
-            iones_en_el_agua_mmol_l.append(water_mmol_l)
-            iones_en_el_agua_meq_l.append(water_meq_l)
-
-            # Final solution contributions
-            final_solution_value = final_solution.get(
-                f'calculated_{element.lower()}', 0)
-            final_solution_mmol_l = final_solution_value / \
-                self._get_molecular_weight(element) if self._get_molecular_weight(
-                    element) > 0 else 0
-            final_solution_meq_l = final_solution_mmol_l * \
-                self._get_valence(element) / 1000
-
-            iones_en_sonu_final_mg_l.append(final_solution_value)
-            iones_en_sonu_final_mmol_l.append(final_solution_mmol_l)
-            iones_en_sonu_final_meq_l.append(final_solution_meq_l)
+            print(f"Processing element: {element}")
             
+            # === FERTILIZER CONTRIBUTIONS ===
+            contribution_mg_l = fertilizer_contributions.get(element, 0)
+            
+            # Calculate mmol/L and meq/L for fertilizer contributions
+            molecular_weight = self._get_molecular_weight(element)
+            if molecular_weight > 0:
+                contribution_mmol_l = contribution_mg_l / molecular_weight
+                contribution_meq_l = contribution_mmol_l * self._get_valence(element)
+            else:
+                contribution_mmol_l = contribution_meq_l = 0
+
+            aporte_de_iones_mg_l.append(round(contribution_mg_l, 3))
+            aporte_de_iones_mmol_l.append(round(contribution_mmol_l, 3))
+            aporte_de_iones_meq_l.append(round(contribution_meq_l, 3))
+
+            # === WATER CONTRIBUTIONS ===
+            # Map element names to water analysis keys
+            water_key_mapping = {
+                'Ca': 'ca', 'K': 'k', 'Mg': 'mg', 'Na': 'na', 'NH4': 'nh4', 'N': 'nO3',
+                'S': 'sO4', 'Cl': 'cl', 'P': 'p', 'HCO3': 'hco3', 'Fe': 'fe', 'Mn': 'mn',
+                'Zn': 'zn', 'Cu': 'cu', 'B': 'b', 'Mo': 'mo'
+            }
+            
+            water_key = water_key_mapping.get(element, element.lower())
+            water_mg_l = water_analysis.get(water_key, water_analysis.get(element, 0))
+
+            # Calculate mmol/L and meq/L for water
+            if molecular_weight > 0:
+                water_mmol_l = water_mg_l / molecular_weight
+                water_meq_l = water_mmol_l * self._get_valence(element)
+            else:
+                water_mmol_l = water_meq_l = 0
+
+            iones_en_el_agua_mg_l.append(round(water_mg_l, 3))
+            iones_en_el_agua_mmol_l.append(round(water_mmol_l, 3))
+            iones_en_el_agua_meq_l.append(round(water_meq_l, 3))
+
+            # === FINAL SOLUTION ===
+            # Use achieved concentrations or calculate as water + fertilizer
+            final_mg_l = achieved_concentrations.get(element, water_mg_l + contribution_mg_l)
+
+            # Calculate mmol/L and meq/L for final solution
+            if molecular_weight > 0:
+                final_mmol_l = final_mg_l / molecular_weight
+                final_meq_l = final_mmol_l * self._get_valence(element)
+            else:
+                final_mmol_l = final_meq_l = 0
+
+            iones_en_sonu_final_mg_l.append(round(final_mg_l, 3))
+            iones_en_sonu_final_mmol_l.append(round(final_mmol_l, 3))
+            iones_en_sonu_final_meq_l.append(round(final_meq_l, 3))
+
+            # Debug output for non-zero values
+            if contribution_mg_l > 0 or water_mg_l > 0 or final_mg_l > 0:
+                print(f"  {element}: fertilizer={contribution_mg_l:.3f}, water={water_mg_l:.3f}, final={final_mg_l:.3f}")
+
+        # Filling columns for molecular weight columns (x values)
         filling = ['x', 'x', 'x', 'x', 'x', 'x']
-        # Create summary rows with non-zero calculations
+        
+        # Create summary rows with corrected calculations
         row_1 = ['APORTE DE IONES (mg/L)'] + filling + aporte_de_iones_mg_l + ['x', 'x']
         row_2 = ['APORTE DE IONES (mmol/L)'] + filling + aporte_de_iones_mmol_l + ['x', 'x']
         row_3 = ['APORTE DE IONES (meq/L)'] + filling + aporte_de_iones_meq_l + ['x', 'x']
@@ -751,12 +804,84 @@ class EnhancedPDFReportGenerator:
         row_7 = ['IONES EN SOLUCIÓN FINAL (mg/L)'] + filling + iones_en_sonu_final_mg_l + ['x', 'x']
         row_8 = ['IONES EN SOLUCIÓN FINAL (mmol/L)'] + filling + iones_en_sonu_final_mmol_l + ['x', 'x']
         row_9 = ['IONES EN SOLUCIÓN FINAL (meq/L)'] + filling + iones_en_sonu_final_meq_l + ['x', 'x']
-        summary_rows.extend([row_1, row_2, row_3, row_4,
-                             row_5, row_6, row_7, row_8, row_9])
-        print(f"Generated {len(summary_rows)} summary rows with non-zero calculations")
+        
+        summary_rows.extend([row_1, row_2, row_3, row_4, row_5, row_6, row_7, row_8, row_9])
+        
+        # Summary debug info
+        total_non_zero_contrib = sum(1 for val in aporte_de_iones_mg_l if val > 0)
+        total_non_zero_water = sum(1 for val in iones_en_el_agua_mg_l if val > 0)
+        total_non_zero_final = sum(1 for val in iones_en_sonu_final_mg_l if val > 0)
+        
+        print(f"Summary statistics:")
+        print(f"  Non-zero contributions: {total_non_zero_contrib}/{len(elements_for_summary)}")
+        print(f"  Non-zero water: {total_non_zero_water}/{len(elements_for_summary)}")
+        print(f"  Non-zero final: {total_non_zero_final}/{len(elements_for_summary)}")
+        print(f"Generated {len(summary_rows)} summary rows with corrected calculations")
         print(f"=== END SUMMARY CALCULATIONS DEBUG ===\n")
 
         return summary_rows
+
+    def _calculate_fertilizer_contributions(self, fertilizer_dosages: Dict, fertilizer_db: Dict) -> Dict[str, float]:
+        """Calculate nutrient contributions from fertilizer dosages"""
+        contributions = {}
+        
+        # Initialize all elements to 0
+        elements = ['Ca', 'K', 'Mg', 'Na', 'NH4', 'NO3-', 'N', 'SO4=', 'S', 'Cl-', 'H2PO4-', 'P', 'HCO3-', 'Fe', 'Mn', 'Zn', 'Cu', 'B', 'Mo']
+        for element in elements:
+            contributions[element] = 0.0
+        
+        print(f"Calculating fertilizer contributions for {len(fertilizer_dosages)} fertilizers")
+        
+        for fert_name, dosage_info in fertilizer_dosages.items():
+            dosage_g_l = self._extract_dosage_value(dosage_info)
+            
+            if dosage_g_l > 0:
+                print(f"  Processing {fert_name}: {dosage_g_l:.4f} g/L")
+                
+                # Get composition data
+                composition_data = self._find_enhanced_composition(fert_name, fertilizer_db)
+                
+                if composition_data:
+                    dosage_mg_l = dosage_g_l * 1000
+                    molecular_weight = composition_data['mw']
+                    cations = composition_data['cations']
+                    anions = composition_data['anions']
+                    
+                    # Calculate contributions for cations
+                    for element, content_percent in cations.items():
+                        if content_percent > 0:
+                            contribution = (dosage_mg_l * content_percent) / 100
+                            contributions[element] = contributions.get(element, 0) + contribution
+                            print(f"    {element} (cation): +{contribution:.3f} mg/L")
+                    
+                    # Calculate contributions for anions
+                    for element, content_percent in anions.items():
+                        if content_percent > 0:
+                            contribution = (dosage_mg_l * content_percent) / 100
+                            contributions[element] = contributions.get(element, 0) + contribution
+                            print(f"    {element} (anion): +{contribution:.3f} mg/L")
+        
+        return contributions
+
+    def _get_molecular_weight(self, element: str) -> float:
+        """Get molecular weight for elements"""
+        molecular_weights = {
+            'Ca': 40.078, 'K': 39.098, 'Mg': 24.305, 'Na': 22.990, 'NH4': 18.038,
+            'NO3-': 62.004, 'N': 14.007, 'SO4=': 96.06, 'S': 32.065, 'Cl-': 35.453,
+            'H2PO4-': 96.987, 'P': 30.974, 'HCO3-': 61.017, 'Fe': 55.845, 'Mn': 54.938,
+            'Zn': 65.38, 'Cu': 63.546, 'B': 10.811, 'Mo': 95.96
+        }
+        return molecular_weights.get(element, 1.0)
+
+    def _get_valence(self, element: str) -> int:
+        """Get valence for elements"""
+        valences = {
+            'Ca': 2, 'K': 1, 'Mg': 2, 'Na': 1, 'NH4': 1,
+            'NO3-': -1, 'N': 0, 'SO4=': -2, 'S': 0, 'Cl-': -1,
+            'H2PO4-': -1, 'P': 0, 'HCO3-': -1, 'Fe': 2, 'Mn': 2,
+            'Zn': 2, 'Cu': 2, 'B': 3, 'Mo': 6
+        }
+        return abs(valences.get(element, 0))  # Return absolute value for meq calculation
 
     def _evaluate_status(self, parameter, deviation):
         deviation_percent = abs(deviation * 100)

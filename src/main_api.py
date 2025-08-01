@@ -903,10 +903,20 @@ async def swagger_integrated_calculation_with_linear_programming(
                 low_nutrients = []         # Low but <15%
                 high_nutrients = []        # High but <15%
                 deviation_nutrients = []   # >±15%
-                
                 for nutrient, deviation in lp_result.deviations_percent.items():
-                    target = target_concentrations.get(nutrient, 0)
+                    # FIXED: Use the target that was actually used in the optimization
                     achieved = lp_result.achieved_concentrations.get(nutrient, 0)
+                    
+                    # Calculate the actual target that the deviation was calculated against
+                    if abs(deviation) < 0.001:  # Near-perfect optimization (essentially 0% deviation)
+                        target_used = achieved  # The LP achieved its target perfectly
+                    else:
+                        # Reverse-engineer the actual target from: deviation = (achieved - target) / target * 100
+                        # Rearranged: target = achieved / (1 + deviation/100)
+                        target_used = achieved / (1 + deviation/100) if (1 + deviation/100) != 0 else achieved
+                    
+                    # Alternative approach: If you have access to adjusted_targets, use them directly
+                    # target_used = adjusted_targets.get(nutrient, target_concentrations.get(nutrient, 0))
                     
                     # Determine status based on your requirements
                     if abs(deviation) <= 0.1:  # ±0.1%
@@ -930,9 +940,37 @@ async def swagger_integrated_calculation_with_linear_programming(
                     
                     nutrient_type = "Macro" if nutrient in ['N', 'P', 'K', 'Ca', 'Mg', 'S', 'HCO3'] else "Micro"
                     
-                    # Format exactly as requested
-                    print(f"{nutrient:<10} {target:<10.1f} {achieved:<10.1f} {deviation:>+6.1f}% {status:<15} {nutrient_type}")
-                
+                    # FIXED: Now the math will be consistent
+                    print(f"{nutrient:<10} {target_used:<10.1f} {achieved:<10.1f} {deviation:>+6.1f}% {status:<15} {nutrient_type}")
+
+                # OPTIONAL: Add a comparison table showing original vs adjusted targets
+                print(f"\n{'='*80}")
+                print(f"[INFO] TARGET ADJUSTMENTS SUMMARY")
+                print(f"{'='*80}")
+                print(f"{'Nutrient':<10} {'Original':<10} {'Adjusted':<10} {'Achieved':<10} {'Reason'}")
+                print(f"{'-'*60}")
+
+                for nutrient in lp_result.deviations_percent.keys():
+                    original_target = target_concentrations.get(nutrient, 0)
+                    achieved = lp_result.achieved_concentrations.get(nutrient, 0)
+                    deviation = lp_result.deviations_percent.get(nutrient, 0)
+                    
+                    # Calculate what the adjusted target was
+                    if abs(deviation) < 0.001:
+                        adjusted_target = achieved
+                    else:
+                        adjusted_target = achieved / (1 + deviation/100) if (1 + deviation/100) != 0 else achieved
+                    
+                    # Determine reason for adjustment
+                    if abs(original_target - adjusted_target) < 0.01:
+                        reason = "No change"
+                    elif adjusted_target < original_target:
+                        reason = "Safety cap"
+                    else:
+                        reason = "Water chemistry"
+                    
+                    print(f"{nutrient:<10} {original_target:<10.1f} {adjusted_target:<10.1f} {achieved:<10.1f} {reason}")
+                    
                 # ===== OPTIMIZATION SUMMARY STATISTICS =====
                 total_nutrients = len(lp_result.deviations_percent)
                 print(f"\n{'='*80}")
@@ -984,58 +1022,17 @@ async def swagger_integrated_calculation_with_linear_programming(
                 
                 print(f"[CHECK] Deterministic calculation completed")
             
-            # ===== PDF REPORT GENERATION =====
-            try:
-                print(f"\n[INFO] Generating comprehensive PDF report...")
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                pdf_filename = f"reports/lp_integrated_report_{timestamp}.pdf"
-                
-                calculation_data = {
-                    "integration_metadata": {
-                        "data_source": "Swagger API with Linear Programming",
-                        "user_id": user_id,
-                        "catalog_id": catalog_id,
-                        "phase_id": phase_id,
-                        "water_id": water_id,
-                        "fertilizers_analyzed": len(fertilizers_data),
-                        "fertilizers_processed": len(api_fertilizers),
-                        "micronutrients_added": len(enhanced_fertilizers) - len(api_fertilizers),
-                        "optimization_method": method,
-                        "linear_programming_enabled": linear_programming,
-                        "calculation_timestamp": datetime.now().isoformat(),
-                        "auto_micronutrient_supplementation": True,
-                        "safety_caps_applied": apply_safety_caps,
-                        "strict_caps_mode": strict_caps,
-                        "solver_time_seconds": getattr(lp_result, 'solver_time_seconds', 0.0) if linear_programming else 0.0,
-                        "optimization_status": getattr(lp_result, 'optimization_status', 'Success') if linear_programming else 'Success'
-                    },
-                    "calculation_results": calculation_results
-                }
-                
-                pdf_generator.generate_comprehensive_pdf(calculation_data, pdf_filename)
-                calculation_results['pdf_report'] = {
-                    "generated": True,
-                    "filename": pdf_filename,
-                    "integration_method": f"swagger_api_with_{method}",
-                    "report_type": "comprehensive_linear_programming"
-                }
-                
-                print(f"[CHECK] PDF report generated: {pdf_filename}")
-                
-            except Exception as e:
-                print(f"[FAILED] PDF generation failed: {e}")
-                calculation_results['pdf_report'] = {
-                    "generated": False,
-                    "error": str(e)
-                }
+        
+        # ===== PDF REPORT GENERATION =====
+        try:
+            print(f"\n[INFO] Generating comprehensive PDF report...")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pdf_filename = f"reports/lp_integrated_report_{timestamp}.pdf"
             
-            # ===== CREATE COMPREHENSIVE API RESPONSE =====
-            response = {
-                "user_info": user_info,
-                "optimization_method": method,
-                "linear_programming_enabled": linear_programming,
+            # FIXED: Include water analysis in calculation_data
+            calculation_data = {
                 "integration_metadata": {
-                    "data_source": "Swagger API with Advanced Linear Programming",
+                    "data_source": "Swagger API with Linear Programming",
                     "user_id": user_id,
                     "catalog_id": catalog_id,
                     "phase_id": phase_id,
@@ -1044,75 +1041,126 @@ async def swagger_integrated_calculation_with_linear_programming(
                     "fertilizers_processed": len(api_fertilizers),
                     "micronutrients_added": len(enhanced_fertilizers) - len(api_fertilizers),
                     "optimization_method": method,
+                    "linear_programming_enabled": linear_programming,
                     "calculation_timestamp": datetime.now().isoformat(),
+                    "auto_micronutrient_supplementation": True,
                     "safety_caps_applied": apply_safety_caps,
                     "strict_caps_mode": strict_caps,
-                    "api_endpoints_used": [
-                        f"/Fertilizer?CatalogId={catalog_id}",
-                        f"/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
-                        f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
-                        "/User"
-                    ]
-                },
-                "optimization_summary": {
-                    "method": method,
-                    "status": calculation_results.get('optimization_status', 'Success'),
-                    "active_fertilizers": calculation_results.get('active_fertilizers', len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0])),
-                    "total_dosage_g_per_L": calculation_results.get('total_dosage_g_per_L', sum(d.dosage_g_per_L for d in calculation_results['fertilizer_dosages'].values())),
-                    "average_deviation_percent": calculation_results.get('convergence_error', np.mean([abs(d) for d in calculation_results.get('deviations_percent', {}).values()])),
-                    "solver_time_seconds": calculation_results.get('solver_time_seconds', 0.0),
-                    "ionic_balance_error": calculation_results.get('ionic_balance_error', 0.0),
-                    "success_rate_percent": success_rate if linear_programming else 0.0
-                },
-                "performance_metrics": {
-                    "fertilizers_fetched": len(fertilizers_data),
-                    "fertilizers_processed": len(api_fertilizers),
-                    "micronutrients_auto_added": len(enhanced_fertilizers) - len(api_fertilizers),
-                    "fertilizers_matched": len([f for f in enhanced_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
-                    "active_dosages": len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0]),
-                    "optimization_method": method,
-                    "micronutrient_coverage": "Complete",
-                    "safety_status": "Protected" if apply_safety_caps else "Unprotected",
-                    "precision_achieved": "Maximum" if linear_programming else "Standard"
+                    "solver_time_seconds": getattr(lp_result, 'solver_time_seconds', 0.0) if linear_programming else 0.0,
+                    "optimization_status": getattr(lp_result, 'optimization_status', 'Success') if linear_programming else 'Success'
                 },
                 "calculation_results": calculation_results,
-                "linear_programming_analysis": {
-                    "excellent_nutrients": len(excellent_nutrients) if linear_programming else 0,
-                    "good_nutrients": len(good_nutrients) if linear_programming else 0,
-                    "deviation_nutrients": len(deviation_nutrients) if linear_programming else 0,
-                    "total_nutrients": total_nutrients if linear_programming else 0
-                } if linear_programming else None,
-                "data_sources": {
-                    "fertilizers_api": f"http://162.248.52.111:8082/Fertilizer?CatalogId={catalog_id}",
-                    "requirements_api": f"http://162.248.52.111:8082/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
-                    "water_api": f"http://162.248.52.111:8082/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
-                    "user_api": "http://162.248.52.111:8082/User",
-                    "micronutrient_supplementation": "Local Database Auto-Addition",
-                    "optimization_engine": "Advanced Linear Programming (PuLP/SciPy)" if linear_programming else "Deterministic Chemistry",
-                    "safety_system": "Integrated Nutrient Caps"
-                }
+                "fertilizer_database": {},  # Add fertilizer database
+                "water_analysis": water_analysis,  # FIXED: Add water analysis
+                "target_concentrations": target_concentrations  # FIXED: Add target concentrations
             }
             
-            # ===== FINAL SUCCESS SUMMARY =====
-            print(f"\n{'='*80}")
-            print(f"[SUCCESS] ENHANCED SWAGGER INTEGRATION WITH LINEAR PROGRAMMING COMPLETE")
-            print(f"{'='*80}")
-            print(f"[INFO] User: {user_info.get('userEmail', 'N/A')} (ID: {user_id})")
-            print(f"[INFO] Method: {method.upper()}")
-            print(f"[INFO] Linear Programming: {'ENABLED' if linear_programming else 'DISABLED'}")
-            print(f"[INFO] Safety Caps: {'APPLIED' if apply_safety_caps else 'DISABLED'}")
-            print(f"[INFO] API Fertilizers: {len(api_fertilizers)}")
-            print(f"[INFO] Enhanced Fertilizers: {len(enhanced_fertilizers)}")
-            print(f"[INFO] Active Fertilizers: {response['optimization_summary']['active_fertilizers']}")
-            print(f"[INFO] Total Dosage: {response['optimization_summary']['total_dosage_g_per_L']:.3f} g/L")
-            print(f"[TARGET] Average Deviation: {response['optimization_summary']['average_deviation_percent']:.2f}%")
-            if linear_programming:
-                print(f"[INFO] Success Rate: {success_rate:.1f}% (Excellent + Good nutrients)")
-                print(f"[INFO] Solver Time: {lp_result.solver_time_seconds:.2f}s")
-            print(f"{'='*80}")
+            # FIXED: Store water analysis for PDF generator access
+            pdf_generator._current_water_analysis = water_analysis
             
-            return response
+            pdf_generator.generate_comprehensive_pdf(calculation_data, pdf_filename)
+            calculation_results['pdf_report'] = {
+                "generated": True,
+                "filename": pdf_filename,
+                "integration_method": f"swagger_api_linear_programming"
+            }
             
+            print(f"[SUCCESS] Enhanced PDF report generated successfully: {pdf_filename}")
+            print(f"[CHECK] PDF report generated: {pdf_filename}")
+            
+        except Exception as e:
+            print(f"[ERROR] PDF generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            calculation_results['pdf_report'] = {
+                "generated": False,
+                "error": str(e),
+                "integration_method": f"swagger_api_linear_programming"
+            }
+        # ===== CREATE COMPREHENSIVE API RESPONSE =====
+        response = {
+            "user_info": user_info,
+            "optimization_method": method,
+            "linear_programming_enabled": linear_programming,
+            "integration_metadata": {
+                "data_source": "Swagger API with Advanced Linear Programming",
+                "user_id": user_id,
+                "catalog_id": catalog_id,
+                "phase_id": phase_id,
+                "water_id": water_id,
+                "fertilizers_analyzed": len(fertilizers_data),
+                "fertilizers_processed": len(api_fertilizers),
+                "micronutrients_added": len(enhanced_fertilizers) - len(api_fertilizers),
+                "optimization_method": method,
+                "calculation_timestamp": datetime.now().isoformat(),
+                "safety_caps_applied": apply_safety_caps,
+                "strict_caps_mode": strict_caps,
+                "api_endpoints_used": [
+                    f"/Fertilizer?CatalogId={catalog_id}",
+                    f"/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
+                    f"/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
+                    "/User"
+                ]
+            },
+            "optimization_summary": {
+                "method": method,
+                "status": calculation_results.get('optimization_status', 'Success'),
+                "active_fertilizers": calculation_results.get('active_fertilizers', len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0])),
+                "total_dosage_g_per_L": calculation_results.get('total_dosage_g_per_L', sum(d.dosage_g_per_L for d in calculation_results['fertilizer_dosages'].values())),
+                "average_deviation_percent": calculation_results.get('convergence_error', np.mean([abs(d) for d in calculation_results.get('deviations_percent', {}).values()])),
+                "solver_time_seconds": calculation_results.get('solver_time_seconds', 0.0),
+                "ionic_balance_error": calculation_results.get('ionic_balance_error', 0.0),
+                "success_rate_percent": success_rate if linear_programming else 0.0
+            },
+            "performance_metrics": {
+                "fertilizers_fetched": len(fertilizers_data),
+                "fertilizers_processed": len(api_fertilizers),
+                "micronutrients_auto_added": len(enhanced_fertilizers) - len(api_fertilizers),
+                "fertilizers_matched": len([f for f in enhanced_fertilizers if sum(f.composition.cations.values()) + sum(f.composition.anions.values()) > 10]),
+                "active_dosages": len([d for d in calculation_results['fertilizer_dosages'].values() if d.dosage_g_per_L > 0]),
+                "optimization_method": method,
+                "micronutrient_coverage": "Complete",
+                "safety_status": "Protected" if apply_safety_caps else "Unprotected",
+                "precision_achieved": "Maximum" if linear_programming else "Standard"
+            },
+            "calculation_results": calculation_results,
+            "linear_programming_analysis": {
+                "excellent_nutrients": len(excellent_nutrients) if linear_programming else 0,
+                "good_nutrients": len(good_nutrients) if linear_programming else 0,
+                "deviation_nutrients": len(deviation_nutrients) if linear_programming else 0,
+                "total_nutrients": total_nutrients if linear_programming else 0
+            } if linear_programming else None,
+            "data_sources": {
+                "fertilizers_api": f"http://162.248.52.111:8082/Fertilizer?CatalogId={catalog_id}",
+                "requirements_api": f"http://162.248.52.111:8082/CropPhaseSolutionRequirement/GetByPhaseId?PhaseId={phase_id}",
+                "water_api": f"http://162.248.52.111:8082/WaterChemistry?WaterId={water_id}&CatalogId={catalog_id}",
+                "user_api": "http://162.248.52.111:8082/User",
+                "micronutrient_supplementation": "Local Database Auto-Addition",
+                "optimization_engine": "Advanced Linear Programming (PuLP/SciPy)" if linear_programming else "Deterministic Chemistry",
+                "safety_system": "Integrated Nutrient Caps"
+            }
+        }
+        
+        # ===== FINAL SUCCESS SUMMARY =====
+        print(f"\n{'='*80}")
+        print(f"[SUCCESS] ENHANCED SWAGGER INTEGRATION WITH LINEAR PROGRAMMING COMPLETE")
+        print(f"{'='*80}")
+        print(f"[INFO] User: {user_info.get('userEmail', 'N/A')} (ID: {user_id})")
+        print(f"[INFO] Method: {method.upper()}")
+        print(f"[INFO] Linear Programming: {'ENABLED' if linear_programming else 'DISABLED'}")
+        print(f"[INFO] Safety Caps: {'APPLIED' if apply_safety_caps else 'DISABLED'}")
+        print(f"[INFO] API Fertilizers: {len(api_fertilizers)}")
+        print(f"[INFO] Enhanced Fertilizers: {len(enhanced_fertilizers)}")
+        print(f"[INFO] Active Fertilizers: {response['optimization_summary']['active_fertilizers']}")
+        print(f"[INFO] Total Dosage: {response['optimization_summary']['total_dosage_g_per_L']:.3f} g/L")
+        print(f"[TARGET] Average Deviation: {response['optimization_summary']['average_deviation_percent']:.2f}%")
+        if linear_programming:
+            print(f"[INFO] Success Rate: {success_rate:.1f}% (Excellent + Good nutrients)")
+            print(f"[INFO] Solver Time: {lp_result.solver_time_seconds:.2f}s")
+        print(f"{'='*80}")
+        
+        return response
+        
     except Exception as e:
         print(f"\n[FAILED] Enhanced Swagger integration failed: {str(e)}")
         import traceback

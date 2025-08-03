@@ -343,88 +343,6 @@ class EnhancedPDFReportGenerator:
         print(f"=== PDF TABLE DEBUG COMPLETE ===\n")
         return table
 
-    def _create_enhanced_fertilizer_row(self, fert_name: str, dosage_info, fertilizer_db: Dict) -> List:
-        """Create enhanced fertilizer row with complete micronutrient support"""
-        dosage_g_l = self._extract_dosage_value(dosage_info)
-
-        print(
-            f"      Creating enhanced row for {fert_name}: {dosage_g_l:.4f} g/L")
-
-        # Get enhanced composition from database
-        composition_data = self._find_enhanced_composition(
-            fert_name, fertilizer_db)
-
-        if composition_data:
-            molecular_weight = composition_data['mw']
-            cations = composition_data['cations']
-            anions = composition_data['anions']
-            print(
-                f"        Found enhanced composition: {composition_data['formula']}")
-        else:
-            # Default composition
-            molecular_weight = 100
-            cations = {elem: 0 for elem in [
-                'Ca', 'K', 'Mg', 'Na', 'NH4', 'Fe', 'Mn', 'Zn', 'Cu']}
-            anions = {elem: 0 for elem in [
-                'N', 'S', 'Cl', 'P', 'HCO3', 'B', 'Mo']}
-            print(f"        Using default composition")
-
-        dosage_mg_l = dosage_g_l * 1000
-        dosage_mmol_l = dosage_mg_l / molecular_weight if molecular_weight > 0 else 0
-
-        # Get main elements for molecular weight display
-        main_elements = self._get_main_elements(cations, anions)
-        elem1_weight = main_elements[0][1] if len(main_elements) > 0 else 0
-        elem2_weight = main_elements[1][1] if len(main_elements) > 1 else 0
-
-        # Calculate nutrient contributions (including micronutrients)
-        purity_factor = 98.0 / 100.0
-
-        # Enhanced row with ALL elements including micronutrients
-        row = [
-            fert_name,                                      # FERTILIZANTE
-            "98.0",                                         # % P (purity)
-            # Peso molecular (Sal)
-            f"{molecular_weight:.1f}",
-            # Peso molecular (Elem1)
-            f"{elem1_weight:.1f}",
-            # Peso molecular (Elem2)
-            f"{elem2_weight:.1f}",
-            # Peso de sal (g/L) - enhanced precision
-            f"{dosage_g_l:.4f}",
-            # Peso de sal (mmol/L)
-            f"{dosage_mmol_l:.4f}",
-
-            # Macronutrient contributions
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Ca', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('K', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mg', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Na', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('NH4', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('N', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('S', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('Cl', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('P', 0), purity_factor):.1f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('HCO3', 0), purity_factor):.1f}",
-
-            # MICRONUTRIENT CONTRIBUTIONS (NEW!)
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Fe', 0), purity_factor):.3f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Mn', 0), purity_factor):.3f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Zn', 0), purity_factor):.3f}",
-            f"{self._calculate_contribution(dosage_mg_l, cations.get('Cu', 0), purity_factor):.3f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('B', 0), purity_factor):.3f}",
-            f"{self._calculate_contribution(dosage_mg_l, anions.get('Mo', 0), purity_factor):.3f}",
-
-            # Summary columns
-            f"{self._calculate_anion_sum(dosage_mg_l, anions, purity_factor):.1f}",
-            f"{dosage_mmol_l * 0.1:.3f}"                   # CE contribution
-        ]
-
-        return row
-
     def _create_micronutrient_analysis_section(self, calculation_data: Dict[str, Any]) -> List:
         """Create detailed micronutrient analysis section with enhanced data"""
         if not REPORTLAB_AVAILABLE:
@@ -1091,28 +1009,64 @@ class EnhancedPDFReportGenerator:
 
         # Enhanced Cost Analysis with micronutrient breakdown
         cost_analysis = calc_results.get('cost_analysis', {})
-        if cost_analysis and cost_analysis.get('cost_per_fertilizer'):
+        if cost_analysis and cost_analysis.get('fertilizer_costs'):
             elements.append(Spacer(1, 20))
             elements.append(Paragraph("<b>ANÁLISIS ECONÓMICO DETALLADO</b>",
                                       ParagraphStyle('SectionTitle', parent=self.styles['Heading2'],
                                                      fontSize=14, textColor=colors.darkblue)))
             elements.append(Spacer(1, 10))
 
-            cost_data = [
-                ['Fertilizante', 'Costo por 1000L ($)', 'Porcentaje (%)', 'Tipo', 'Dosificación (g/L)']]
+            # Add cost summary section
+            cost_summary_data = [
+                ['Métrica', 'Valor', 'Unidad'],
+                ['Costo Total CRC', f"₡{cost_analysis.get('total_cost_crc', 0):.2f}", 'CRC'],
+                ['Costo por Litro', f"₡{cost_analysis.get('cost_per_liter_crc', 0):.4f}", 'CRC/L'],
+                ['Costo por m³', f"₡{cost_analysis.get('cost_per_m3_crc', 0):.2f}", 'CRC/m³'],
+                ['Cobertura API Precios', f"{cost_analysis.get('api_price_coverage_percent', 0):.1f}%", '%'],
+                ['Factor Regional', f"{cost_analysis.get('regional_factor', 1.0):.2f}", ''],
+                ['Región', cost_analysis.get('region', 'N/A'), '']
+            ]
 
-            cost_per_fert = cost_analysis.get('cost_per_fertilizer', {})
-            percentage_per_fert = cost_analysis.get(
-                'percentage_per_fertilizer', {})
+            cost_summary_table = Table(cost_summary_data, colWidths=[2*inch, 1.5*inch, 1*inch])
+            cost_summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]))
+            elements.append(cost_summary_table)
+            elements.append(Spacer(1, 15))
+
+            # Pricing sources information
+            pricing_sources = cost_analysis.get('pricing_sources', {})
+            if pricing_sources:
+                pricing_info = f"Fuentes de Precios: API ({pricing_sources.get('api_prices_used', 0)} precios) | " \
+                              f"Fallback ({pricing_sources.get('fallback_prices_used', 0)} precios)"
+                elements.append(Paragraph(pricing_info, 
+                                        ParagraphStyle('PricingInfo', parent=self.styles['Normal'],
+                                                     fontSize=8, textColor=colors.grey)))
+                elements.append(Spacer(1, 10))
+
+            # Detailed fertilizer costs table
+            cost_data = [
+                ['Fertilizante', 'Costo por 1000L (₡)', 'Porcentaje (%)', 'Tipo', 'Dosificación (g/L)', 'Total L Usado']
+            ]
+
+            fertilizer_costs = cost_analysis.get('fertilizer_costs', {})
+            cost_percentages = cost_analysis.get('cost_percentages', {})
             fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
 
             # Separate costs by type
             macro_costs = []
             micro_costs = []
 
-            for fert, cost in cost_per_fert.items():
+            for fert, cost in fertilizer_costs.items():
                 if cost > 0:
-                    percentage = percentage_per_fert.get(fert, 0)
+                    percentage = cost_percentages.get(fert, 0)
                     dosage_info = fertilizer_dosages.get(fert, {})
                     dosage_g_l = self._extract_dosage_value(dosage_info)
 
@@ -1122,7 +1076,8 @@ class EnhancedPDFReportGenerator:
                     fert_type = 'Micronutriente' if is_micro_fert else 'Macronutriente'
 
                     cost_row = [
-                        fert, f"${cost:.3f}", f"{percentage:.1f}%", fert_type, f"{dosage_g_l:.4f}"]
+                        fert, f"₡{cost:.3f}", f"{percentage:.1f}%", fert_type, f"{dosage_g_l:.4f}", f"{dosage_g_l * 1000:.2f} L"
+                    ]
 
                     if is_micro_fert:
                         micro_costs.append(cost_row)
@@ -1136,17 +1091,17 @@ class EnhancedPDFReportGenerator:
                 cost_data.append(cost_row)
 
             # Add totals
-            total_cost = cost_analysis.get('total_cost_diluted', 0)
-            macro_total = sum(cost for fert, cost in cost_per_fert.items()
+            total_cost = cost_analysis.get('total_cost_crc', 0)
+            macro_total = sum(cost for fert, cost in fertilizer_costs.items()
                               if not any(micro in fert.lower() for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato']))
             micro_total = total_cost - macro_total
 
             cost_data.append(
-                ['SUBTOTAL MACRONUTRIENTES', f"${macro_total:.3f}", f"{macro_total/total_cost*100:.1f}%", 'Subtotal', ''])
+                ['SUBTOTAL MACRONUTRIENTES', f"₡{macro_total:.3f}", f"{macro_total/total_cost*100:.1f}%", 'Subtotal', ''])
             cost_data.append(
-                ['SUBTOTAL MICRONUTRIENTES', f"${micro_total:.3f}", f"{micro_total/total_cost*100:.1f}%", 'Subtotal', ''])
+                ['SUBTOTAL MICRONUTRIENTES', f"₡{micro_total:.3f}", f"{micro_total/total_cost*100:.1f}%", 'Subtotal', ''])
             cost_data.append(
-                ['TOTAL GENERAL', f"${total_cost:.2f}", '100.0%', 'Total', ''])
+                ['TOTAL GENERAL', f"₡{total_cost:.2f}", '100.0%', 'Total', ''])
 
             cost_table = Table(cost_data, colWidths=[
                                2.5*inch, 1.5*inch, 1.2*inch, 1.5*inch, 1.2*inch])
@@ -1175,7 +1130,7 @@ class EnhancedPDFReportGenerator:
 
             # Color-code micronutrient rows
             row_index = 1
-            for fert, cost in cost_per_fert.items():
+            for fert, cost in fertilizer_costs.items():
                 if cost > 0:
                     is_micro_fert = any(micro in fert.lower()
                                         for micro in ['hierro', 'iron', 'manganeso', 'zinc', 'cobre', 'copper', 'borico', 'molibdato'])
@@ -1190,18 +1145,93 @@ class EnhancedPDFReportGenerator:
 
             cost_table.setStyle(TableStyle(cost_style))
             elements.append(cost_table)
+                
+            # Pie graph for cost distribution
+            print("Creating cost distribution pie chart")
+            elements.append(Spacer(1, 20))
+            print("DEBUG: Cost analysis data:", cost_analysis)
+            cost_pie_graph = self._create_cost_distribution_pie_chart(cost_analysis, fertilizer_costs, cost_percentages)
+            if cost_pie_graph:
+                print("Cost distribution pie chart created successfully")
+                elements.append(cost_pie_graph)
 
         return elements
 
-    def _get_enhanced_fertilizer_database(self) -> Dict:
-        """Get the enhanced fertilizer database"""
-        try:
-            fertilizer_db = EnhancedFertilizerDatabase()
-            return fertilizer_db.fertilizer_data
-        except Exception as e:
-            print(f"WARNING: Could not load fertilizer database: {e}")
-            return {}
+    def _create_cost_distribution_pie_chart(self, cost_analysis: Dict[str, Any], fertilizer_costs: Dict[str, float], cost_percentages: Dict[str, float]) -> Optional[object]:
+        """Create a pie chart for cost distribution of fertilizers"""
+        if not REPORTLAB_AVAILABLE:
+            print("ReportLab not available, cannot create cost distribution pie chart")
+            return None
 
+        try:
+            from reportlab.graphics.shapes import Drawing
+            from reportlab.graphics.charts.piecharts import Pie
+            from reportlab.lib import colors
+
+            print(f"Creating pie chart with fertilizer_costs: {len(fertilizer_costs)} items")
+            print(f"Cost percentages: {len(cost_percentages)} items")
+
+            # Prepare data for the pie chart
+            pie_data = []
+            for fert, cost in fertilizer_costs.items():
+                if cost > 0:
+                    percentage = cost_percentages.get(fert, 0)
+                    if percentage > 0:  # Only include if there's a valid percentage
+                        pie_data.append((fert, percentage))
+
+            if not pie_data:
+                print("No valid data available for cost distribution pie chart")
+                return None
+
+            # Limit to top 8 fertilizers to avoid cluttered chart
+            pie_data = sorted(pie_data, key=lambda x: x[1], reverse=True)[:8]
+            
+            print(f"Final pie chart data: {pie_data}")
+            
+            # Create the pie chart
+            print(f"Creating pie chart with {len(pie_data)} fertilizers")
+            pie_chart = Pie()
+            pie_chart.x = 50
+            pie_chart.y = 50
+            pie_chart.width = 300
+            pie_chart.height = 300
+            pie_chart.data = [value for _, value in pie_data]
+            pie_chart.labels = [label[:15] + '...' if len(label) > 15 else label for label, _ in pie_data]
+            pie_chart.slices.strokeWidth = 1
+            pie_chart.slices.fontName = 'Helvetica'
+            pie_chart.slices.fontSize = 8
+
+            # Set colors only for the actual data slices
+            colors_list = [colors.blue, colors.green, colors.red, colors.orange, colors.purple, colors.grey, colors.cyan, colors.magenta]
+            num_slices = len(pie_data)
+            print(f"Setting colors for {num_slices} slices")
+            
+            if num_slices > 0:
+                for i in range(num_slices):
+                    pie_chart.slices[i].fillColor = colors_list[i % len(colors_list)]
+                    print(f"Set color for slice {i}: {colors_list[i % len(colors_list)]}")
+            else:
+                print("No slices to color")
+                return None
+
+            # Create drawing and add title
+            drawing = Drawing(400, 380)
+            drawing.add(pie_chart)
+            
+            # Add title
+            from reportlab.graphics.shapes import String
+            title = String(200, 360, 'Distribución de Costos por Fertilizante', textAnchor='middle')
+            title.fontName = 'Helvetica-Bold'
+            title.fontSize = 12
+            drawing.add(title)
+
+            print("Cost distribution pie chart created successfully")
+            return drawing
+
+        except ImportError as e:
+            print(f"Error creating cost distribution pie chart: {e}")
+            return None
+        
     def _find_enhanced_composition(self, fert_name: str, fertilizer_db: Dict) -> Optional[Dict]:
         """Find enhanced fertilizer composition in database"""
         try:
@@ -1359,30 +1389,6 @@ class EnhancedPDFReportGenerator:
     def generate_comprehensive_pdf(self, calculation_data: Dict[str, Any], filename: str = None) -> str:
         """Alias for generate_enhanced_pdf for backward compatibility"""
         return self.generate_enhanced_pdf(calculation_data, filename)
-
-    def debug_calculation_data(calculation_data: Dict[str, Any]) -> None:
-        """Debug function to analyze calculation data structure"""
-        print(f"\n=== CALCULATION DATA DEBUG ===")
-
-        calc_results = calculation_data.get('calculation_results', {})
-        print(f"Calculation results keys: {list(calc_results.keys())}")
-
-        fertilizer_dosages = calc_results.get('fertilizer_dosages', {})
-        print(f"Fertilizer dosages: {len(fertilizer_dosages)} entries")
-
-        if fertilizer_dosages:
-            print(f"Sample fertilizer dosage structure:")
-            first_key = list(fertilizer_dosages.keys())[0]
-            first_value = fertilizer_dosages[first_key]
-            print(f"  Key: {first_key}")
-            print(f"  Value: {first_value} (type: {type(first_value)})")
-
-            if isinstance(first_value, dict):
-                print(f"  Dict keys: {list(first_value.keys())}")
-                for k, v in first_value.items():
-                    print(f"    {k}: {v} (type: {type(v)})")
-
-        print(f"=== END CALCULATION DATA DEBUG ===\n")
 
     def _create_enhanced_fertilizer_row_with_marking(self, fert_name: str, dosage_info, fertilizer_db: Dict) -> List:
         """

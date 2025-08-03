@@ -1114,40 +1114,222 @@ class SolutionVerifier:
 
 
 class CostAnalyzer:
-    """Cost analysis module"""
+    """Professional cost analysis module with API-based pricing"""
 
     def __init__(self):
-        self.fertilizer_costs = {
-            'Acido Nítrico DAC': 1.20, 'Acido Fosfórico': 1.50, 'Acido Sulfurico': 1.00,
-            'Nitrato de amonio': 0.45, 'Sulfato de amonio': 0.50, 'Nitrato de calcio': 0.80,
-            'Nitrato de calcio amoniacal': 0.85, 'Nitrato de potasio': 1.20, 'Sulfato de potasio': 1.50,
-            'Sulfato de magnesio': 0.60, 'Fosfato monopotasico': 2.50
+        # Fallback prices for unknown fertilizers (CRC per kg)
+        # These will only be used if API price is not available
+        self.fallback_fertilizer_costs = {
+            # Acids
+            'Acido Nítrico': 1.20, 'Acido Nitrico': 1.20, 'Ácido Nítrico': 1.20,
+            'Acido Fosfórico': 1.80, 'Acido Fosforico': 1.80, 'Ácido Fosfórico': 1.80,
+            'Acido Sulfurico': 0.90, 'Acido Sulfúrico': 0.90, 'Ácido Sulfúrico': 0.90,
+            
+            # Nitrates
+            'Nitrato de calcio': 0.85, 'Nitrato de Calcio': 0.85, 'Calcium Nitrate': 0.85,
+            'Nitrato de potasio': 1.30, 'Nitrato de Potasio': 1.30, 'Potassium Nitrate': 1.30,
+            'Nitrato de amonio': 0.55, 'Nitrato de Amonio': 0.55, 'Ammonium Nitrate': 0.55,
+            'Nitrato de magnesio': 1.10, 'Nitrato de Magnesio': 1.10, 'Magnesium Nitrate': 1.10,
+            
+            # Sulfates
+            'Sulfato de amonio': 0.45, 'Sulfato de Amonio': 0.45, 'Ammonium Sulfate': 0.45,
+            'Sulfato de potasio': 1.60, 'Sulfato de Potasio': 1.60, 'Potassium Sulfate': 1.60,
+            'Sulfato de magnesio': 0.65, 'Sulfato de Magnesio': 0.65, 'Magnesium Sulfate': 0.65,
+            'Sulfato de calcio': 0.40, 'Sulfato de Calcio': 0.40, 'Calcium Sulfate': 0.40,
+            
+            # Phosphates
+            'Fosfato monopotasico': 2.80, 'Fosfato monopotásico': 2.80,
+            'Fosfato Monopotasico': 2.80, 'Fosfato Monopotásico': 2.80,
+            'Monopotassium Phosphate': 2.80, 'KH2PO4': 2.80, 'MKP': 2.80,
+            
+            # Micronutrients
+            'Quelato de hierro': 8.50, 'Quelato de Hierro': 8.50, 'Iron Chelate': 8.50,
+            'Sulfato de hierro': 2.20, 'Sulfato de Hierro': 2.20, 'Iron Sulfate': 2.20,
+            'Sulfato de manganeso': 3.80, 'Sulfato de Manganeso': 3.80, 'Manganese Sulfate': 3.80,
+            'Sulfato de zinc': 4.20, 'Sulfato de Zinc': 4.20, 'Zinc Sulfate': 4.20,
+            'Sulfato de cobre': 5.60, 'Sulfato de Cobre': 5.60, 'Copper Sulfate': 5.60,
+            'Acido borico': 6.40, 'Ácido bórico': 6.40, 'Ácido Bórico': 6.40, 'Boric Acid': 6.40,
+            'Molibdato de sodio': 12.50, 'Molibdato de Sodio': 12.50, 'Sodium Molybdate': 12.50
+        }
+        
+        # Regional price adjustment factors
+        self.regional_factors = {
+            'North America': 1.0,
+            'Europe': 1.15,
+            'Asia': 0.85,
+            'Latin America': 0.90,
+            'Default': 1.0
         }
 
-    def calculate_solution_cost(self, fertilizer_amounts: Dict[str, float], concentrated_volume: float, diluted_volume: float) -> Dict[str, Any]:
-        """Calculate complete cost analysis"""
+    def calculate_solution_cost_with_api_data(self, 
+                                            fertilizer_amounts: Dict[str, float], 
+                                            fertilizer_objects: List[Any],
+                                            concentrated_volume: float, 
+                                            diluted_volume: float,
+                                            region: str = 'Default') -> Dict[str, Any]:
+        """
+        Calculate comprehensive solution cost analysis using API price data
+        
+        Args:
+            fertilizer_amounts: Dict mapping fertilizer names to amounts in kg
+            fertilizer_objects: List of fertilizer objects from API (with price data)
+            concentrated_volume: Volume of concentrated solution in L
+            diluted_volume: Volume of diluted solution in L  
+            region: Regional price adjustment factor
+        """
+        print(f"\n[MONEY] CALCULATING COST ANALYSIS WITH API PRICES")
+        print(f"Fertilizer amounts: {len(fertilizer_amounts)} fertilizers")
+        print(f"Fertilizer objects: {len(fertilizer_objects)} objects with price data")
+        print(f"Concentrated volume: {concentrated_volume:.1f} L")
+        print(f"Diluted volume: {diluted_volume:.1f} L")
+        
+        regional_factor = self.regional_factors.get(region, 1.0)
+        
+        # Create a mapping from fertilizer names to price data
+        fertilizer_price_map = {}
+        for fert_obj in fertilizer_objects:
+            fertilizer_name = fert_obj.name if hasattr(fert_obj, 'name') else str(fert_obj)
+            
+            # Try to get price from the fertilizer object
+            api_price = None
+            if hasattr(fert_obj, 'price') and fert_obj.price is not None:
+                api_price = float(fert_obj.price)
+            elif isinstance(fert_obj, dict) and 'price' in fert_obj and fert_obj['price'] is not None:
+                api_price = float(fert_obj['price'])
+            
+            fertilizer_price_map[fertilizer_name] = api_price
+            
+            if api_price is not None:
+                print(f"  [API PRICE] {fertilizer_name}: ₡{api_price:.2f}/kg")
+            else:
+                print(f"  [NO PRICE] {fertilizer_name}: No API price available")
+        
         cost_per_fertilizer = {}
-        total_cost = 0
-
+        total_cost_concentrated = 0
+        total_cost_diluted = 0
+        
+        # Calculate cost for each fertilizer
         for fertilizer, amount_kg in fertilizer_amounts.items():
-            cost_per_kg = self.fertilizer_costs.get(fertilizer, 1.0)
-            cost = amount_kg * cost_per_kg
-            cost_per_fertilizer[fertilizer] = cost
-            total_cost += cost
-
+            if amount_kg > 0:
+                # Get cost per kg (prioritize API price, then fallback)
+                cost_per_kg = self._get_fertilizer_cost_with_api_data(
+                    fertilizer, fertilizer_price_map
+                ) * regional_factor
+                
+                # Calculate costs
+                cost_concentrated = amount_kg * cost_per_kg
+                cost_diluted = cost_concentrated  # Same cost regardless of dilution
+                
+                cost_per_fertilizer[fertilizer] = {
+                    'amount_kg': round(amount_kg, 4),
+                    'cost_per_kg': round(cost_per_kg, 2),
+                    'total_cost': round(cost_concentrated, 3),
+                    'price_source': 'api' if fertilizer in fertilizer_price_map and 
+                                           fertilizer_price_map[fertilizer] is not None else 'fallback'
+                }
+                
+                total_cost_concentrated += cost_concentrated
+                total_cost_diluted += cost_diluted
+                
+                source_indicator = "📡" if cost_per_fertilizer[fertilizer]['price_source'] == 'api' else "🔄"
+                print(f"  {source_indicator} {fertilizer}: {amount_kg:.3f} kg × ₡{cost_per_kg:.2f}/kg = ₡{cost_concentrated:.3f}")
+        
+        # Calculate percentage distribution
         percentage_per_fertilizer = {}
-        if total_cost > 0:
-            for fertilizer, cost in cost_per_fertilizer.items():
-                percentage_per_fertilizer[fertilizer] = (
-                    cost / total_cost) * 100
-
-        return {
-            'total_cost_concentrated': total_cost, 'total_cost_diluted': total_cost,
-            'cost_per_liter_concentrated': total_cost / concentrated_volume if concentrated_volume > 0 else 0,
-            'cost_per_liter_diluted': total_cost / diluted_volume if diluted_volume > 0 else 0,
-            'cost_per_m3_diluted': (total_cost / diluted_volume * 1000) if diluted_volume > 0 else 0,
-            'cost_per_fertilizer': cost_per_fertilizer, 'percentage_per_fertilizer': percentage_per_fertilizer,
+        if total_cost_concentrated > 0:
+            for fertilizer, cost_info in cost_per_fertilizer.items():
+                percentage = (cost_info['total_cost'] / total_cost_concentrated) * 100
+                percentage_per_fertilizer[fertilizer] = round(percentage, 1)
+        
+        # Calculate per-unit costs
+        cost_per_liter_concentrated = total_cost_concentrated / concentrated_volume if concentrated_volume > 0 else 0
+        cost_per_liter_diluted = total_cost_diluted / diluted_volume if diluted_volume > 0 else 0
+        cost_per_m3_diluted = cost_per_liter_diluted * 1000
+        
+        # Create simplified cost dictionary for backward compatibility
+        simple_cost_per_fertilizer = {name: info['total_cost'] for name, info in cost_per_fertilizer.items()}
+        
+        # Count API vs fallback prices used
+        api_prices_used = sum(1 for info in cost_per_fertilizer.values() if info['price_source'] == 'api')
+        fallback_prices_used = len(cost_per_fertilizer) - api_prices_used
+        
+        result = {
+            'total_cost_concentrated': round(total_cost_concentrated, 3),
+            'total_cost_diluted': round(total_cost_diluted, 3),
+            'cost_per_liter_concentrated': round(cost_per_liter_concentrated, 4),
+            'cost_per_liter_diluted': round(cost_per_liter_diluted, 4),
+            'cost_per_m3_diluted': round(cost_per_m3_diluted, 2),
+            'cost_per_fertilizer': simple_cost_per_fertilizer,  # Simplified for compatibility
+            'percentage_per_fertilizer': percentage_per_fertilizer,
+            'detailed_costs': cost_per_fertilizer,  # Detailed cost breakdown with price sources
+            'regional_factor': regional_factor,
+            'region': region,
+            'pricing_summary': {
+                'api_prices_used': api_prices_used,
+                'fallback_prices_used': fallback_prices_used,
+                'total_fertilizers': len(cost_per_fertilizer),
+                'api_price_coverage': round((api_prices_used / len(cost_per_fertilizer)) * 100, 1) if cost_per_fertilizer else 0
+            }
         }
+        
+        print(f"[MONEY] Total cost: ₡{total_cost_concentrated:.3f}")
+        print(f"[WATER] Cost per liter: ₡{cost_per_liter_diluted:.4f}")
+        print(f"[API] API prices used: {api_prices_used}/{len(cost_per_fertilizer)} ({result['pricing_summary']['api_price_coverage']:.1f}%)")
+        
+        return result
+
+    def _get_fertilizer_cost_with_api_data(self, fertilizer_name: str, 
+                                         fertilizer_price_map: Dict[str, float]) -> float:
+        """
+        Get fertilizer cost prioritizing API data, with fallback to hardcoded prices
+        """
+        # First, try to get API price
+        if fertilizer_name in fertilizer_price_map and fertilizer_price_map[fertilizer_name] is not None:
+            api_price = fertilizer_price_map[fertilizer_name]
+            print(f"    [API] Using API price for {fertilizer_name}: ₡{api_price:.2f}/kg")
+            return api_price
+        
+        # Fallback to hardcoded prices with intelligent matching
+        fallback_price = self._get_fertilizer_cost_fallback(fertilizer_name)
+        print(f"    [FALLBACK] Using fallback price for {fertilizer_name}: ₡{fallback_price:.2f}/kg")
+        return fallback_price
+
+    def _get_fertilizer_cost_fallback(self, fertilizer_name: str) -> float:
+        """
+        Get fertilizer cost from fallback prices with intelligent name matching
+        """
+        # Try exact match first
+        if fertilizer_name in self.fallback_fertilizer_costs:
+            return self.fallback_fertilizer_costs[fertilizer_name]
+        
+        # Try case-insensitive match
+        name_lower = fertilizer_name.lower()
+        for cost_name, cost in self.fallback_fertilizer_costs.items():
+            if cost_name.lower() == name_lower:
+                return cost
+        
+        # Try partial matching
+        for cost_name, cost in self.fallback_fertilizer_costs.items():
+            if name_lower in cost_name.lower() or cost_name.lower() in name_lower:
+                return cost
+        
+        # Try keyword matching for common fertilizers
+        keyword_mapping = {
+            'nitrato': 1.00, 'sulfato': 0.80, 'fosfato': 2.50, 'cloruro': 1.20,
+            'calcio': 0.80, 'potasio': 1.40, 'magnesio': 0.70, 'hierro': 5.00,
+            'zinc': 4.00, 'cobre': 5.50, 'manganeso': 3.50, 'boro': 6.00,
+            'molibdeno': 12.00, 'acido': 1.50
+        }
+        
+        for keyword, default_cost in keyword_mapping.items():
+            if keyword in name_lower:
+                print(f"    [KEYWORD] Using keyword-based cost for {fertilizer_name}: ₡{default_cost:.2f}/kg")
+                return default_cost
+        
+        # Default cost for unknown fertilizers
+        default_cost = 2.00
+        print(f"    [DEFAULT] Unknown fertilizer {fertilizer_name}, using default cost: ₡{default_cost:.2f}/kg")
+        return default_cost
 
     def _create_comprehensive_summary_rows(self, nutrient_contributions: Dict, water_contribution: Dict, final_solution: Dict) -> List[List]:
         """Create comprehensive summary rows matching Excel format"""
@@ -1822,7 +2004,7 @@ class EnhancedPDFReportGenerator:
                                                  fontSize=14, textColor=colors.darkblue)))
             elements.append(Spacer(1, 10))
             
-            cost_data = [['Fertilizante', 'Costo por 1000L ($)', 'Porcentaje del Total (%)']]
+            cost_data = [['Fertilizante', 'Costo por 1000L (₡)', 'Porcentaje del Total (%)']]
             
             cost_per_fert = cost_analysis.get('cost_per_fertilizer', {})
             percentage_per_fert = cost_analysis.get('percentage_per_fertilizer', {})
@@ -1832,13 +2014,13 @@ class EnhancedPDFReportGenerator:
                     percentage = percentage_per_fert.get(fert, 0)
                     cost_data.append([
                         fert,
-                        f"${cost:.3f}",
+                        f"₡{cost:.3f}",
                         f"{percentage:.1f}%"
                     ])
             
             # Add total row
             total_cost = cost_analysis.get('total_cost_diluted', 0)
-            cost_data.append(['TOTAL', f"${total_cost:.2f}", '100.0%'])
+            cost_data.append(['TOTAL', f"₡{total_cost:.2f}", '100.0%'])
             
             cost_table = Table(cost_data, colWidths=[3*inch, 2*inch, 2*inch])
             cost_table.setStyle(TableStyle([
@@ -1916,7 +2098,7 @@ async def calculate_advanced_fertilizer_solution(request: FertilizerRequest):
         fertilizer_amounts_kg = {name: dosage * request.calculation_settings.volume_liters / 1000
                                  for name, dosage in dosages_g_l.items()}
 
-        cost_analysis_data = cost_analyzer.calculate_solution_cost(
+        cost_analysis_data = cost_analyzer.calculate_solution_cost_with_api_data(
             fertilizer_amounts_kg, request.calculation_settings.volume_liters,
             request.calculation_settings.volume_liters
         )

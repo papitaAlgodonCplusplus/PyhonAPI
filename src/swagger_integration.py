@@ -120,93 +120,91 @@ class SwaggerAPIClient:
         except Exception as e:
             print(f"[ERROR] Get user error: {e}")
             raise
-    
-    async def get_fertilizers(self, catalog_id: int, include_inactives: bool = False) -> List[Dict[str, Any]]:
-        """
-        Get all fertilizers from the specified catalog
-        """
-        if not self.auth_token:
-            raise Exception("Authentication required - please login first")
-
-        print(f"[FETCH] Fetching fertilizers from catalog {catalog_id}...")
         
-        url = f"{self.base_url}/Fertilizer"
-        params = {
-            'CatalogId': catalog_id,
-            'IncludeInactives': 'true' if include_inactives else 'false'
-        }
-
-        try:
-            async with self.session.get(url, params=params, headers=self.headers, timeout=30) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    fertilizers = data.get('result', {}).get('fertilizers', [])
-                    
-                    print(f"[SUCCESS] Found {len(fertilizers)} fertilizers")
-                    
-                    # Log first few fertilizer names for verification
-                    for i, fert in enumerate(fertilizers[:5]):
-                        print(f"  {i+1}. {fert.get('name', 'Unknown')} (ID: {fert.get('id', 'N/A')})")
-                    
-                    if len(fertilizers) > 5:
-                        print(f"  ... and {len(fertilizers) - 5} more")
-                    
-                    return fertilizers
-                    
-                elif response.status == 401:
-                    print(f"[ERROR] Authentication failed - token may have expired")
-                    raise Exception("Authentication failed - token may have expired")
-                    
-                else:
-                    error_text = await response.text()
-                    print(f"[ERROR] HTTP {response.status}: {error_text[:300]}")
-                    raise Exception(f"Failed to fetch fertilizers: HTTP {response.status}")
-                    
-        except aiohttp.ClientError as e:
-            print(f"[ERROR] Network error fetching fertilizers: {e}")
-            raise Exception(f"Network error: {e}")
-
-    async def get_fertilizer_chemistry(self, fertilizer_id: int, catalog_id: int) -> Optional[Dict[str, Any]]:
+        
+    async def get_fertilizer_inputs(self, catalog_id: int) -> List[Dict[str, Any]]:
         """
-        Get detailed fertilizer chemistry data
+        Fetch FertilizerInput data which contains pricing information
         """
         if not self.auth_token:
             raise Exception("Authentication required")
 
-        url = f"{self.base_url}/FertilizerChemistry"
-        params = {
-            'FertilizerId': fertilizer_id,
-            'CatalogId': catalog_id
-        }
+        print(f"[FETCH] Fetching fertilizer inputs with pricing for catalog {catalog_id}...")
+        
+        url = f"{self.base_url}/FertilizerInput"
+        params = {'CatalogId': catalog_id}
 
         try:
             async with self.session.get(url, params=params, headers=self.headers, timeout=15) as response:
                 if response.status == 200:
                     data = await response.json()
-                    chemistry_list = data.get('result', {}).get('fertilizerChemistries', [])
+                    fertilizer_inputs = data.get('result', {}).get('fertilizerInputs', [])
                     
-                    if chemistry_list:
-                        chemistry = chemistry_list[0]
-                        print(f"    [SUCCESS] Chemistry data: {chemistry.get('formula', 'N/A')}")
-                        return chemistry
+                    if fertilizer_inputs:
+                        print(f"[SUCCESS] Found {len(fertilizer_inputs)} fertilizer inputs with pricing")
+                        # Log some price samples
+                        for input_data in fertilizer_inputs[:5]:  # Show first 5
+                            name = input_data.get('name', 'Unknown')
+                            price = input_data.get('price', None)
+                            print(f"  {name}: ₡{price} (sample)")
+                        return fertilizer_inputs
                     else:
-                        print(f"    [WARNING]  No chemistry data found")
-                        return None
+                        print(f"[WARNING] No fertilizer inputs found for catalog {catalog_id}")
+                        return []
                         
-                elif response.status == 404:
-                    print(f"    [WARNING]  Chemistry not found for fertilizer {fertilizer_id}")
-                    return None
-                    
                 else:
-                    print(f"    [WARNING]  Chemistry fetch failed: HTTP {response.status}")
-                    return None
+                    error_text = await response.text()
+                    print(f"[WARNING] Fertilizer inputs fetch failed: HTTP {response.status}")
+                    return []
                     
         except aiohttp.ClientError as e:
-            print(f"    [WARNING]  Network error fetching chemistry: {e}")
-            return None
-        except Exception as e:
-            print(f"    [WARNING]  Error fetching chemistry: {e}")
-            return None
+            print(f"[ERROR] Network error fetching fertilizer inputs: {e}")
+            return []
+        
+    async def get_fertilizers(self, catalog_id: int, include_inactives: bool = False) -> List[Dict[str, Any]]:
+            """
+            Get all fertilizers from the specified catalog
+            """
+            if not self.auth_token:
+                raise Exception("Authentication required - please login first")
+
+            print(f"[FETCH] Fetching fertilizers from catalog {catalog_id}...")
+            
+            url = f"{self.base_url}/Fertilizer"
+            params = {
+                'CatalogId': catalog_id,
+                'IncludeInactives': 'true' if include_inactives else 'false'
+            }
+
+            try:
+                async with self.session.get(url, params=params, headers=self.headers, timeout=30) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        fertilizers = data.get('result', {}).get('fertilizers', [])
+                        
+                        print(f"[SUCCESS] Found {len(fertilizers)} fertilizers")
+                        
+                        # Log first few fertilizer names for verification
+                        for i, fert in enumerate(fertilizers[:5]):
+                            print(f"  {i+1}. {fert.get('name', 'Unknown')} (ID: {fert.get('id', 'N/A')})")
+                        
+                        if len(fertilizers) > 5:
+                            print(f"  ... and {len(fertilizers) - 5} more")
+                        
+                        return fertilizers
+                        
+                    elif response.status == 401:
+                        print(f"[ERROR] Authentication failed - token may have expired")
+                        raise Exception("Authentication failed - token may have expired")
+                        
+                    else:
+                        error_text = await response.text()
+                        print(f"[ERROR] HTTP {response.status}: {error_text[:300]}")
+                        raise Exception(f"Failed to fetch fertilizers: HTTP {response.status}")
+                        
+            except aiohttp.ClientError as e:
+                print(f"[ERROR] Network error fetching fertilizers: {e}")
+                raise Exception(f"Network error: {e}")
 
     async def get_crop_phase_requirements(self, phase_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -505,38 +503,6 @@ class SwaggerAPIClient:
         except Exception as e:
             print(f"[ERROR] Connection test error: {e}")
             return False
-
-    def get_integration_summary(self, fertilizers_fetched: int, fertilizers_processed: int, 
-                              targets_mapped: int, water_mapped: int) -> Dict[str, Any]:
-        """
-        Generate integration summary statistics
-        """
-        return {
-            "integration_status": "complete",
-            "api_endpoints_used": [
-                "/Authentication/Login",
-                "/Fertilizer",
-                "/FertilizerChemistry", 
-                "/CropPhaseSolutionRequirement/GetByPhaseId",
-                "/WaterChemistry"
-            ],
-            "data_processing": {
-                "fertilizers_fetched": fertilizers_fetched,
-                "fertilizers_processed": fertilizers_processed,
-                "processing_success_rate": f"{(fertilizers_processed/fertilizers_fetched*100):.1f}%" if fertilizers_fetched > 0 else "0%",
-                "targets_mapped": targets_mapped,
-                "water_parameters_mapped": water_mapped
-            },
-            "database_integration": {
-                "fertilizer_database_used": True,
-                "intelligent_pattern_matching": True,
-                "fallback_compositions": True
-            },
-            "authentication": {
-                "method": "Bearer Token",
-                "status": "authenticated" if self.auth_token else "not_authenticated"
-            }
-        }
 
 # Helper functions for standalone usage
 async def test_swagger_integration():

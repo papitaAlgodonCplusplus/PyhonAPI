@@ -343,33 +343,6 @@ class NutrientCaps:
         
         return max(0.0, base_score)
 
-    def get_recommended_targets_for_crop(self, crop_type: str = 'general') -> Dict[str, float]:
-        """
-        Get recommended target concentrations for specific crop types
-        """
-        
-        crop_profiles = {
-            'leafy_greens': {
-                'N': 160, 'P': 35, 'K': 200, 'Ca': 140, 'Mg': 40, 'S': 70,
-                'Fe': 2.0, 'Mn': 0.5, 'Zn': 0.3, 'Cu': 0.08, 'B': 0.4, 'Mo': 0.05
-            },
-            'fruiting_crops': {
-                'N': 180, 'P': 45, 'K': 250, 'Ca': 170, 'Mg': 50, 'S': 80,
-                'Fe': 2.5, 'Mn': 0.6, 'Zn': 0.4, 'Cu': 0.1, 'B': 0.5, 'Mo': 0.06
-            },
-            'herbs': {
-                'N': 130, 'P': 30, 'K': 180, 'Ca': 120, 'Mg': 35, 'S': 60,
-                'Fe': 1.8, 'Mn': 0.4, 'Zn': 0.25, 'Cu': 0.07, 'B': 0.35, 'Mo': 0.04
-            },
-            'general': {
-                'N': 150, 'P': 40, 'K': 200, 'Ca': 150, 'Mg': 40, 'S': 70,
-                'Fe': 2.0, 'Mn': 0.5, 'Zn': 0.3, 'Cu': 0.08, 'B': 0.4, 'Mo': 0.05
-            }
-        }
-        
-        return crop_profiles.get(crop_type, crop_profiles['general'])
-
-
 # Integration function for the main API
 def apply_nutrient_caps_to_targets(target_concentrations: Dict[str, float], 
                                   strict_mode: bool = True) -> Dict[str, Any]:

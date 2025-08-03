@@ -362,248 +362,133 @@ class SolutionVerifier:
         else:
             return {ion: 0.0 for ion in ion_list}
 
-    def generate_verification_summary(self, verification_results: List[Dict], 
-                                    ionic_relationships: List[Dict], 
-                                    ionic_balance: Dict) -> Dict[str, Any]:
-        """
-        Generate comprehensive verification summary
-        """
-        # Analyze verification results
-        total_nutrients = len(verification_results)
-        excellent_count = len([r for r in verification_results if r['status'] == 'Excellent'])
-        good_count = len([r for r in verification_results if r['status'] == 'Good'])
-        warning_count = len([r for r in verification_results if r['status'] in ['High', 'Low', 'Caution']])
-        critical_count = len([r for r in verification_results if 'Critical' in r['status']])
-        
-        # Calculate overall quality score
-        quality_score = self._calculate_quality_score(
-            excellent_count, good_count, warning_count, critical_count, total_nutrients
-        )
-        
-        # Analyze ionic relationships
-        balanced_ratios = len([r for r in ionic_relationships if r['status'] in ['Excellent', 'Good']])
-        total_ratios = len(ionic_relationships)
-        
-        summary = {
-            'overall_quality_score': quality_score,
-            'nutrient_analysis': {
-                'total_nutrients': total_nutrients,
-                'excellent_nutrients': excellent_count,
-                'good_nutrients': good_count,
-                'warning_nutrients': warning_count,
-                'critical_nutrients': critical_count,
-                'success_rate': round((excellent_count + good_count) / total_nutrients * 100, 1) if total_nutrients > 0 else 0
-            },
-            'ionic_analysis': {
-                'total_ratios': total_ratios,
-                'balanced_ratios': balanced_ratios,
-                'balance_percentage': round(balanced_ratios / total_ratios * 100, 1) if total_ratios > 0 else 0,
-                'ionic_balance_status': ionic_balance['balance_status'],
-                'ionic_balance_error': ionic_balance['difference_percentage']
-            },
-            'recommendations': self._generate_recommendations(
-                verification_results, ionic_relationships, ionic_balance
-            )
-        }
-        
-        return summary
-
-    def _calculate_quality_score(self, excellent: int, good: int, warning: int, 
-                               critical: int, total: int) -> float:
-        """
-        Calculate overall solution quality score (0-100)
-        """
-        if total == 0:
-            return 0
-        
-        score = (excellent * 100 + good * 85 + warning * 60 + critical * 20) / total
-        return round(score, 1)
-
-    def _generate_recommendations(self, verification_results: List[Dict], 
-                                ionic_relationships: List[Dict], 
-                                ionic_balance: Dict) -> List[str]:
-        """
-        Generate intelligent recommendations based on verification results
-        """
-        recommendations = []
-        
-        # Analyze critical nutrients
-        critical_nutrients = [r for r in verification_results if 'Critical' in r['status']]
-        high_nutrients = [r for r in verification_results if r['status'] == 'High']
-        low_nutrients = [r for r in verification_results if r['status'] == 'Low']
-        
-        # Critical nutrient recommendations
-        if critical_nutrients:
-            for nutrient in critical_nutrients:
-                if 'High' in nutrient['status']:
-                    recommendations.append(f"URGENT: {nutrient['parameter']} is critically high ({nutrient['actual_value']} mg/L). Reduce corresponding fertilizer by 30-50% or dilute solution.")
-                else:
-                    recommendations.append(f"URGENT: {nutrient['parameter']} is critically low ({nutrient['actual_value']} mg/L). Increase corresponding fertilizer immediately.")
-        
-        # High nutrient recommendations
-        if high_nutrients:
-            high_elements = [n['parameter'] for n in high_nutrients]
-            recommendations.append(f"Reduce fertilizers containing {', '.join(high_elements)} by 10-20% to prevent toxicity.")
-        
-        # Low nutrient recommendations
-        if low_nutrients:
-            low_elements = [n['parameter'] for n in low_nutrients]
-            recommendations.append(f"Increase fertilizers containing {', '.join(low_elements)} by 15-25% to meet targets.")
-        
-        # Ionic balance recommendations
-        balance_error = ionic_balance['difference_percentage']
-        if balance_error > 15:
-            if ionic_balance['cation_sum'] > ionic_balance['anion_sum']:
-                recommendations.append("Ionic balance shows excess cations. Consider reducing Ca, K, or Mg sources and increasing anion sources.")
-            else:
-                recommendations.append("Ionic balance shows excess anions. Consider reducing N, P, or S sources and increasing cation sources.")
-        
-        # Ionic ratio recommendations
-        imbalanced_ratios = [r for r in ionic_relationships if r['status'] in ['Caution', 'Imbalanced']]
-        for ratio in imbalanced_ratios:
-            if 'K:Ca' in ratio['relationship_name']:
-                if ratio['actual_ratio'] > ratio['target_max']:
-                    recommendations.append("K:Ca ratio is too high. Reduce potassium fertilizers or increase calcium fertilizers.")
-                else:
-                    recommendations.append("K:Ca ratio is too low. Increase potassium fertilizers or reduce calcium fertilizers.")
-        
-        # General optimization recommendations
-        if balance_error <= 10 and not critical_nutrients:
-            recommendations.append("Solution composition is well-balanced. Consider fine-tuning for specific crop requirements.")
-        
-        # EC and pH recommendations
-        if ionic_balance['cation_sum'] + ionic_balance['anion_sum'] > 25:
-            recommendations.append("Total ion concentration is high (EC >2.5). Consider dilution for sensitive crops.")
-        elif ionic_balance['cation_sum'] + ionic_balance['anion_sum'] < 10:
-            recommendations.append("Total ion concentration is low (EC <1.0). Increase overall fertilizer concentration.")
-        
-        return recommendations[:10]  # Limit to top 10 recommendations
-
-
 class CostAnalyzer:
     """Professional cost analysis module with market-based pricing"""
 
     def __init__(self):
-        # Market-based fertilizer costs (USD per kg)
+        # Market-based fertilizer costs (CRC per kg)
         # Updated with realistic 2024 pricing
         self.fertilizer_costs = {
-            # Acids
-            'Acido Nítrico': 1.20,
-            'Acido Nitrico': 1.20,
-            'Ácido Nítrico': 1.20,
-            'Acido Fosfórico': 1.80,
-            'Acido Fosforico': 1.80,
-            'Ácido Fosfórico': 1.80,
-            'Acido Sulfurico': 0.90,
-            'Acido Sulfúrico': 0.90,
-            'Ácido Sulfúrico': 0.90,
+            # Acids - Precios basados en API de Costa Rica
+            'Acido Nítrico': 10000.0,
+            'Acido Nitrico': 10000.0,
+            'Ácido Nítrico': 10000.0,
+            'Acido Fosfórico': 10000.0,
+            'Acido Fosforico': 10000.0,
+            'Ácido Fosfórico': 10000.0,
+            'Acido Sulfurico': 8500.0,  # Estimado basado en patrón de precios
+            'Acido Sulfúrico': 8500.0,
+            'Ácido Sulfúrico': 8500.0,
             
-            # Nitrates
-            'Nitrato de calcio': 0.85,
-            'Nitrato de Calcio': 0.85,
-            'Calcium Nitrate': 0.85,
-            'Nitrato de potasio': 1.30,
-            'Nitrato de Potasio': 1.30,
-            'Potassium Nitrate': 1.30,
-            'Nitrato de amonio': 0.55,
-            'Nitrato de Amonio': 0.55,
-            'Ammonium Nitrate': 0.55,
-            'Nitrato de magnesio': 1.10,
-            'Nitrato de Magnesio': 1.10,
-            'Magnesium Nitrate': 1.10,
+            # Nitrates - Precios basados en API + estimaciones realistas
+            'Nitrato de calcio': 14875.0,  # Precio exacto de API
+            'Nitrato de Calcio': 14875.0,
+            'Calcium Nitrate': 14875.0,
+            'Nitrato de potasio': 16000.0,  # Estimado (típicamente más caro que calcio)
+            'Nitrato de Potasio': 16000.0,
+            'Potassium Nitrate': 16000.0,
+            'Nitrato de amonio': 9500.0,   # Estimado (más barato que calcio)
+            'Nitrato de Amonio': 9500.0,
+            'Ammonium Nitrate': 9500.0,
+            'Nitrato de magnesio': 12500.0, # Estimado (intermedio)
+            'Nitrato de Magnesio': 12500.0,
+            'Magnesium Nitrate': 12500.0,
             
-            # Sulfates
-            'Sulfato de amonio': 0.45,
-            'Sulfato de Amonio': 0.45,
-            'Ammonium Sulfate': 0.45,
-            'Sulfato de potasio': 1.60,
-            'Sulfato de Potasio': 1.60,
-            'Potassium Sulfate': 1.60,
-            'Sulfato de magnesio': 0.65,
-            'Sulfato de Magnesio': 0.65,
-            'Magnesium Sulfate': 0.65,
-            'Sulfato de calcio': 0.40,
-            'Sulfato de Calcio': 0.40,
-            'Calcium Sulfate': 0.40,
+            # Sulfates - Basado en patrón de sulfato de amonio de API
+            'Sulfato de amonio': 10520.25,  # Precio exacto de API
+            'Sulfato de Amonio': 10520.25,
+            'Ammonium Sulfate': 10520.25,
+            'Sulfato de potasio': 18000.0,  # Estimado (típicamente caro)
+            'Sulfato de Potasio': 18000.0,
+            'Potassium Sulfate': 18000.0,
+            'Sulfato de magnesio': 8500.0,  # Estimado (más barato)
+            'Sulfato de Magnesio': 8500.0,
+            'Magnesium Sulfate': 8500.0,
+            'Sulfato de calcio': 7500.0,   # Estimado (barato)
+            'Sulfato de Calcio': 7500.0,
+            'Calcium Sulfate': 7500.0,
             
-            # Phosphates
-            'Fosfato monopotasico': 2.80,
-            'Fosfato monopotásico': 2.80,
-            'Fosfato Monopotasico': 2.80,
-            'Fosfato Monopotásico': 2.80,
-            'Monopotassium Phosphate': 2.80,
-            'KH2PO4': 2.80,
-            'MKP': 2.80,
-            'Fosfato dipotasico': 2.60,
-            'Fosfato dipotásico': 2.60,
-            'Dipotassium Phosphate': 2.60,
-            'Fosfato monoamonico': 1.80,
-            'Fosfato monoamónico': 1.80,
-            'Monoammonium Phosphate': 1.80,
-            'MAP': 1.80,
-            'Fosfato diamonico': 1.70,
-            'Fosfato diamónico': 1.70,
-            'Diammonium Phosphate': 1.70,
-            'DAP': 1.70,
+            # Phosphates - Típicamente caros en Costa Rica
+            'Fosfato monopotasico': 25000.0,  # Estimado alto (premium)
+            'Fosfato monopotásico': 25000.0,
+            'Fosfato Monopotasico': 25000.0,
+            'Fosfato Monopotásico': 25000.0,
+            'Monopotassium Phosphate': 25000.0,
+            'KH2PO4': 25000.0,
+            'MKP': 25000.0,
+            'Fosfato dipotasico': 23000.0,
+            'Fosfato dipotásico': 23000.0,
+            'Dipotassium Phosphate': 23000.0,
+            'Fosfato monoamonico': 20000.0,  # MAP - común
+            'Fosfato monoamónico': 20000.0,
+            'Monoammonium Phosphate': 20000.0,
+            'MAP': 20000.0,
+            'Fosfato diamonico': 18000.0,    # DAP - más común
+            'Fosfato diamónico': 18000.0,
+            'Fosfato diamónico (DAP)': 18000.0,  # Variante con paréntesis
+            'Diammonium Phosphate': 18000.0,
+            'DAP': 18000.0,
             
-            # Chlorides
-            'Cloruro de calcio': 0.75,
-            'Cloruro de Calcio': 0.75,
-            'Calcium Chloride': 0.75,
-            'Cloruro de potasio': 1.40,
-            'Cloruro de Potasio': 1.40,
-            'Potassium Chloride': 1.40,
-            'Cloruro de magnesio': 0.80,
-            'Cloruro de Magnesio': 0.80,
-            'Magnesium Chloride': 0.80,
+            # Chlorides - Basado en precio de Cloruro de Potasio de API
+            'Cloruro de calcio': 12000.0,   # Estimado (más barato que K)
+            'Cloruro de Calcio': 12000.0,
+            'Calcium Chloride': 12000.0,
+            'Cloruro de potasio': 58125.0,  # Precio exacto de API
+            'Cloruro de Potasio': 58125.0,  # Precio exacto de API
+            'Potassium Chloride': 58125.0,
+            'Cloruro de magnesio': 10000.0, # Estimado
+            'Cloruro de Magnesio': 10000.0,
+            'Magnesium Chloride': 10000.0,
             
-            # Micronutrients (typically more expensive)
-            'Quelato de hierro': 8.50,
-            'Quelato de Hierro': 8.50,
-            'Iron Chelate': 8.50,
-            'Fe-EDTA': 8.50,
-            'FeEDTA': 8.50,
-            'Sulfato de hierro': 2.20,
-            'Sulfato de Hierro': 2.20,
-            'Iron Sulfate': 2.20,
-            'FeSO4': 2.20,
-            'Sulfato de manganeso': 3.80,
-            'Sulfato de Manganeso': 3.80,
-            'Manganese Sulfate': 3.80,
-            'MnSO4': 3.80,
-            'MnSO4.4H2O': 3.80,
-            'Sulfato de zinc': 4.20,
-            'Sulfato de Zinc': 4.20,
-            'Zinc Sulfate': 4.20,
-            'ZnSO4': 4.20,
-            'ZnSO4.7H2O': 4.20,
-            'Sulfato de cobre': 5.60,
-            'Sulfato de Cobre': 5.60,
-            'Copper Sulfate': 5.60,
-            'CuSO4': 5.60,
-            'CuSO4.5H2O': 5.60,
-            'Acido borico': 6.40,
-            'Ácido bórico': 6.40,
-            'Ácido Bórico': 6.40,
-            'Boric Acid': 6.40,
-            'H3BO3': 6.40,
-            'Molibdato de sodio': 12.50,
-            'Molibdato de Sodio': 12.50,
-            'Sodium Molybdate': 12.50,
-            'Na2MoO4': 12.50,
-            'Na2MoO4.2H2O': 12.50
+            # Micronutrients - Típicamente muy caros en Costa Rica
+            'Quelato de hierro': 75000.0,   # Premium quelatos
+            'Quelato de Hierro': 75000.0,
+            'Iron Chelate': 75000.0,
+            'Fe-EDTA': 75000.0,
+            'FeEDTA': 75000.0,
+            'Sulfato de hierro': 15000.0,   # Más barato que quelatos
+            'Sulfato de Hierro': 15000.0,
+            'Iron Sulfate': 15000.0,
+            'FeSO4': 15000.0,
+            'Sulfato de manganeso': 18000.0,
+            'Sulfato de Manganeso': 18000.0,
+            'Manganese Sulfate': 18000.0,
+            'MnSO4': 18000.0,
+            'MnSO4.4H2O': 18000.0,
+            'Sulfato de zinc': 22000.0,     # Más caro que manganeso
+            'Sulfato de Zinc': 22000.0,
+            'Zinc Sulfate': 22000.0,
+            'ZnSO4': 22000.0,
+            'ZnSO4.7H2O': 22000.0,
+            'Sulfato de cobre': 28000.0,    # Más caro
+            'Sulfato de Cobre': 28000.0,
+            'Copper Sulfate': 28000.0,
+            'CuSO4': 28000.0,
+            'CuSO4.5H2O': 28000.0,
+            'Sulfato de cobre (acidif)': 28000.0,  # Variante específica
+            'Acido borico': 35000.0,        # Boro es caro
+            'Ácido bórico': 35000.0,
+            'Ácido Bórico': 35000.0,
+            'Boric Acid': 35000.0,
+            'H3BO3': 35000.0,
+            'Molibdato de sodio': 95000.0,  # Molibdeno muy caro
+            'Molibdato de Sodio': 95000.0,
+            'Sodium Molybdate': 95000.0,
+            'Na2MoO4': 95000.0,
+            'Na2MoO4.2H2O': 95000.0
         }
-        
-        # Regional price adjustment factors
+
+        # ACTUALIZAR TAMBIÉN los regional_factors para Costa Rica:
         self.regional_factors = {
             'North America': 1.0,
             'Europe': 1.15,
             'Asia': 0.85,
-            'Latin America': 0.90,
+            'Latin America': 1.0,      # Cambiar de 0.90 a 1.0 para Costa Rica
+            'Costa Rica': 1.0,         # Agregar específico para Costa Rica
             'Default': 1.0
         }
 
-    def calculate_solution_cost(self, fertilizer_amounts: Dict[str, float], 
+    def calculate_solution_cost_with_api_data(self, fertilizer_amounts: Dict[str, float], 
                               concentrated_volume: float, 
                               diluted_volume: float,
                               region: str = 'Default') -> Dict[str, Any]:
@@ -634,13 +519,14 @@ class CostAnalyzer:
                 cost_per_fertilizer[fertilizer] = {
                     'amount_kg': round(amount_kg, 4),
                     'cost_per_kg': round(cost_per_kg, 2),
-                    'total_cost': round(cost_concentrated, 3)
+                    'total_cost': round(cost_concentrated, 3),
+                    'price_source': 'fallback'  # Default to fallback since we're using internal pricing
                 }
                 
                 total_cost_concentrated += cost_concentrated
                 total_cost_diluted += cost_diluted
                 
-                print(f"  {fertilizer}: {amount_kg:.3f} kg × ${cost_per_kg:.2f}/kg = ${cost_concentrated:.3f}")
+                print(f"  {fertilizer}: {amount_kg:.3f} kg × ₡{cost_per_kg:.2f}/kg = ₡{cost_concentrated:.3f}")
         
         # Calculate percentage distribution
         percentage_per_fertilizer = {}
@@ -656,21 +542,49 @@ class CostAnalyzer:
         # Create simplified cost dictionary for backward compatibility
         simple_cost_per_fertilizer = {name: info['total_cost'] for name, info in cost_per_fertilizer.items()}
         
+        # Calculate pricing summary
+        total_fertilizers_used = len([f for f in cost_per_fertilizer.keys() if cost_per_fertilizer[f]['amount_kg'] > 0])
+        api_prices_used = 0  # Default to 0 since we're using fallback prices
+        fallback_prices_used = total_fertilizers_used
+        api_price_coverage = 0.0  # Default to 0% since we're using fallback prices
+        
+        # Enhanced result structure to match expected format
         result = {
+            'total_cost_crc': round(total_cost_concentrated, 3),
+            'cost_per_liter_crc': round(cost_per_liter_diluted, 4),
+            'cost_per_m3_crc': round(cost_per_m3_diluted, 2),
+            'api_price_coverage_percent': api_price_coverage,
+            'fertilizer_costs': simple_cost_per_fertilizer,
+            'cost_percentages': percentage_per_fertilizer,
+            'pricing_sources': {
+                'api_prices_used': api_prices_used,
+                'fallback_prices_used': fallback_prices_used
+            },
+            'cost_per_m3_diluted': round(cost_per_m3_diluted, 2),
+            'cost_per_fertilizer': cost_per_fertilizer,
+            'regional_factor': regional_factor,
+            'region': region,
+            
+            # Legacy fields for backward compatibility
             'total_cost_concentrated': round(total_cost_concentrated, 3),
             'total_cost_diluted': round(total_cost_diluted, 3),
             'cost_per_liter_concentrated': round(cost_per_liter_concentrated, 4),
             'cost_per_liter_diluted': round(cost_per_liter_diluted, 4),
-            'cost_per_m3_diluted': round(cost_per_m3_diluted, 2),
-            'cost_per_fertilizer': simple_cost_per_fertilizer,  # Simplified for compatibility
+            'cost_per_fertilizer': simple_cost_per_fertilizer,
             'percentage_per_fertilizer': percentage_per_fertilizer,
-            'detailed_costs': cost_per_fertilizer,  # Detailed cost breakdown
-            'regional_factor': regional_factor,
-            'region': region
+            'detailed_costs': cost_per_fertilizer,
+            
+            # Pricing summary for detailed analysis
+            'pricing_summary': {
+                'api_price_coverage': api_price_coverage,
+                'api_prices_used': api_prices_used,
+                'fallback_prices_used': fallback_prices_used,
+                'total_fertilizers_analyzed': total_fertilizers_used
+            }
         }
         
-        print(f"[MONEY] Total cost: ${total_cost_concentrated:.3f}")
-        print(f"[WATER] Cost per liter: ${cost_per_liter_diluted:.4f}")
+        print(f"[MONEY] Total cost: ₡{total_cost_concentrated:.3f}")
+        print(f"[WATER] Cost per liter: ₡{cost_per_liter_diluted:.4f}")
         
         return result
 
@@ -713,10 +627,10 @@ class CostAnalyzer:
         
         for keyword, default_cost in keyword_mapping.items():
             if keyword in name_lower:
-                print(f"    [MONEY] Using keyword-based cost for {fertilizer_name}: ${default_cost:.2f}/kg")
+                print(f"    [MONEY] Using keyword-based cost for {fertilizer_name}: ₡{default_cost:.2f}/kg")
                 return default_cost
         
         # Default cost for unknown fertilizers
         default_cost = 2.00
-        print(f"    [WARNING]  Unknown fertilizer {fertilizer_name}, using default cost: ${default_cost:.2f}/kg")
+        print(f"    [WARNING]  Unknown fertilizer {fertilizer_name}, using default cost: ₡{default_cost:.2f}/kg")
         return default_cost

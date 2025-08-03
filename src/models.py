@@ -34,9 +34,6 @@ class LinearProgrammingResult(BaseModel):
     active_fertilizers: int
     total_dosage: float
     
-    class Config:
-        # Allow numpy arrays and other complex types
-        arbitrary_types_allowed = True
 
 class NutrientDeviationAnalysis(BaseModel):
     """Detailed analysis of nutrient deviations"""
@@ -138,19 +135,6 @@ class CalculationStatus(BaseModel):
     warnings: List[str]
     iterations: int
     convergence_error: float
-
-class EnhancedResponse(BaseModel):
-    """Enhanced response with linear programming results"""
-    fertilizer_dosages: Dict[str, FertilizerDosage]
-    lp_result: Optional[LinearProgrammingResult] = None
-    safety_caps_result: Optional[SafetyCapsResult] = None
-    optimization_report: Optional[LinearProgrammingReport] = None
-    method_comparison: Optional[OptimizationComparison] = None
-    calculation_status: CalculationStatus
-    pdf_report: Optional[Dict[str, str]] = None
-    
-    class Config:
-        arbitrary_types_allowed = True
         
 # =============================================================================
 # CORE FERTILIZER MODELS
@@ -200,11 +184,6 @@ class CalculationStatus(BaseModel):
     warnings: List[str]
     iterations: int
     convergence_error: float
-
-class SimpleResponse(BaseModel):
-    fertilizer_dosages: Dict[str, FertilizerDosage]
-    calculation_status: CalculationStatus
-    pdf_report: Optional[Dict[str, str]] = None
 
 # =============================================================================
 # MACHINE LEARNING MODELS

@@ -1719,3 +1719,485 @@ class EnhancedPDFReportGenerator:
         }
 
         return purposes.get(micronutrient, 'Función metabólica esencial')
+    
+        
+    def generate_comprehensive_constrained_report(self, 
+                                             target_concentrations: Dict[str, float],
+                                             achieved_concentrations: Dict[str, float],
+                                             dosages: Dict[str, float],
+                                             water_analysis: Dict[str, float],
+                                             volume_liters: float,
+                                             cost_analysis: Dict[str, Any],
+                                             constraint_analysis: Dict[str, Any],
+                                             solver_info: Dict[str, Any],
+                                             fertilizer_data: Dict[str, Any],
+                                             verification_result: Dict[str, Any],
+                                             filename: str,
+                                             calculation_data: Dict[str, Any]) -> bool:
+        """
+        Generate comprehensive constrained fertilizer report with all standard tables plus constraint analysis
+        
+        This method combines:
+        1. All standard calculation tables (like generate_comprehensive_pdf)
+        2. Constraint-specific analysis and tables
+        3. Enhanced recommendations and optimization suggestions
+        """
+        try:
+            print(f"[PDF] Generating comprehensive constrained report: {filename}")
+            
+            # Create document with larger page size to accommodate more content
+            doc = SimpleDocTemplate(filename, pagesize=letter, 
+                                rightMargin=0.5*inch, leftMargin=0.5*inch,
+                                topMargin=0.75*inch, bottomMargin=0.75*inch)
+            
+            story = []
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle('CustomTitle',
+                                    parent=styles['Heading1'],
+                                    fontSize=18,
+                                    spaceAfter=30,
+                                    alignment=1,  # Center
+                                    textColor=colors.darkblue)
+            
+            section_style = ParagraphStyle('SectionHeader',
+                                        parent=styles['Heading2'],
+                                        fontSize=14,
+                                        spaceAfter=12,
+                                        textColor=colors.darkgreen,
+                                        borderWidth=1,
+                                        borderColor=colors.darkgreen,
+                                        borderPadding=5)
+            
+            subsection_style = ParagraphStyle('SubsectionHeader',
+                                            parent=styles['Heading3'],
+                                            fontSize=12,
+                                            spaceAfter=8,
+                                            textColor=colors.darkblue)
+            
+            # =================
+            # 1. TITLE PAGE
+            # =================
+            story.append(Paragraph("COMPREHENSIVE CONSTRAINED FERTILIZER REPORT", title_style))
+            story.append(Spacer(1, 20))
+            
+            # Report metadata
+            story.append(Paragraph("REPORT INFORMATION", section_style))
+            
+            metadata_data = [
+                ['Parameter', 'Value'],
+                ['Report Type', 'Comprehensive Constrained Analysis'],
+                ['Volume (L)', f"{volume_liters:,.0f}"],
+                ['Optimization Method', solver_info.get('solver', 'Unknown')],
+                ['Constraints Applied', f"{constraint_analysis.get('total_constraints', 0)}"],
+                ['Constraint Priority', solver_info.get('constraint_priority', 'N/A')],
+                ['Generated', datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+                ['Quality Score', f"{verification_result.get('quality_metrics', {}).get('overall_score', 0):.1f}/100"],
+                ['Safety Level', verification_result.get('safety_assessment', {}).get('safety_level', 'unknown')]
+            ]
+            
+            metadata_table = Table(metadata_data, colWidths=[2.5*inch, 2*inch])
+            metadata_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(metadata_table)
+            story.append(PageBreak())
+           
+            main_table = self._create_enhanced_main_table(calculation_data)
+            story.append(main_table)
+            story.append(PageBreak())
+            
+            # ======================
+            # 2. EXECUTIVE SUMMARY
+            # ======================
+            story.append(Paragraph("EXECUTIVE SUMMARY", section_style))
+            
+            # Performance metrics
+            perf_summary = verification_result.get('performance_summary', {})
+            avg_deviation = verification_result.get('average_deviation_percent', 0)
+            total_cost = cost_analysis.get('total_cost_concentrated', 0)
+            
+            summary_text = f"""
+            <b>Solution Performance:</b><br/>
+            • Average nutrient deviation: {avg_deviation:.2f}%<br/>
+            • Success rate: {perf_summary.get('success_rate_percent', 0):.1f}% (excellent + good nutrients)<br/>
+            • Quality grade: {verification_result.get('quality_metrics', {}).get('grade', 'N/A')}<br/>
+            <br/>
+            <b>Constraint Compliance:</b><br/>
+            • Total constraints applied: {constraint_analysis.get('total_constraints', 0)}<br/>
+            • Constraints satisfied: {constraint_analysis.get('constraints_met', 0)}<br/>
+            • Constraint violations: {len(constraint_analysis.get('violations', []))}<br/>
+            <br/>
+            <b>Cost Analysis:</b><br/>
+            • Total solution cost: ₡{total_cost:.3f}<br/>
+            • Cost per liter: ₡{cost_analysis.get('cost_per_liter_diluted', 0):.4f}<br/>
+            • Total fertilizer usage: {sum(dosages.values()):.3f} g/L<br/>
+            """
+            
+            story.append(Paragraph(summary_text, styles['Normal']))
+            story.append(Spacer(1, 20))
+            
+            # ======================
+            # 3. CONSTRAINT ANALYSIS
+            # ======================
+            story.append(Paragraph("CONSTRAINT ANALYSIS", section_style))
+            
+            if constraint_analysis.get('constraint_details'):
+                # Constraint compliance table
+                story.append(Paragraph("Fertilizer Constraints Compliance", subsection_style))
+                
+                constraint_data = [['Fertilizer', 'Min Limit', 'Max Limit', 'Actual Dosage', 'Status', 'Compliance']]
+                
+                for detail in constraint_analysis['constraint_details']:
+                    fert_name = detail['fertilizer']
+                    min_req = detail.get('min_required', 0)
+                    max_allowed = detail.get('max_allowed', '∞')
+                    actual = detail.get('dosage', 0)
+                    status = detail.get('compliance', 'unknown')
+                    
+                    # Format values
+                    min_str = f"{min_req:.3f} g/L" if min_req > 0 else "No limit"
+                    max_str = f"{max_allowed:.3f} g/L" if max_allowed != float('inf') else "No limit"
+                    actual_str = f"{actual:.3f} g/L"
+                    status_str = "✓ Met" if status == 'met' else "✗ Violated"
+                    
+                    # Compliance percentage
+                    if min_req <= actual <= (max_allowed if max_allowed != float('inf') else float('inf')):
+                        compliance_pct = "100%"
+                    else:
+                        if actual < min_req:
+                            compliance_pct = f"{(actual/min_req*100):.1f}%" if min_req > 0 else "0%"
+                        else:
+                            compliance_pct = f"{(max_allowed/actual*100):.1f}%" if max_allowed != float('inf') else "0%"
+                    
+                    constraint_data.append([fert_name, min_str, max_str, actual_str, status_str, compliance_pct])
+                
+                constraint_table = Table(constraint_data, colWidths=[1.8*inch, 0.9*inch, 0.9*inch, 0.9*inch, 0.7*inch, 0.7*inch])
+                constraint_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(constraint_table)
+                story.append(Spacer(1, 15))
+            
+            # Constraint violations detail (if any)
+            violations = constraint_analysis.get('violations', [])
+            if violations:
+                story.append(Paragraph("Constraint Violations Detail", subsection_style))
+                
+                violation_data = [['Fertilizer', 'Violation Type', 'Required', 'Actual', 'Impact']]
+                
+                for violation in violations:
+                    fert_name = violation['fertilizer']
+                    viol_type = violation.get('violation_type', 'unknown')
+                    
+                    if viol_type == 'below_minimum':
+                        required = f"{violation.get('min_required', 0):.3f} g/L"
+                        type_str = "Below minimum"
+                        impact = "May reduce nutrient delivery"
+                    else:
+                        required = f"{violation.get('max_allowed', 0):.3f} g/L"
+                        type_str = "Above maximum"
+                        impact = "May cause nutrient excess"
+                    
+                    actual = f"{violation.get('dosage', 0):.3f} g/L"
+                    
+                    violation_data.append([fert_name, type_str, required, actual, impact])
+                
+                violation_table = Table(violation_data, colWidths=[1.5*inch, 1.2*inch, 1*inch, 0.8*inch, 1.5*inch])
+                violation_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.mistyrose),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(violation_table)
+                story.append(Spacer(1, 15))
+            
+            story.append(PageBreak())
+            
+            # =============================
+            # 4. STANDARD CALCULATION TABLES (from generate_comprehensive_pdf)
+            # =============================
+            
+            # Prepare calculation data in the format expected by existing methods
+            calculation_data = {
+                'calculation_results': {
+                    'fertilizer_dosages': dosages,
+                    'achieved_concentrations': achieved_concentrations,
+                    'water_analysis': water_analysis,
+                    'target_concentrations': target_concentrations
+                },
+                'fertilizer_database': fertilizer_data,
+                'integration_metadata': {
+                    'volume_liters': volume_liters,
+                    'solver_info': solver_info
+                }
+            }
+            
+            # Store current context for PDF generation
+            self._current_water_analysis = water_analysis
+            self._current_targets = target_concentrations
+            
+            # Generate standard calculation tables
+            story.append(Paragraph("DETAILED CALCULATION TABLES", section_style))
+            
+            # Table 1: Fertilizer composition and dosages
+            story.append(Paragraph("Fertilizer Dosages and Composition", subsection_style))
+            
+            fertilizer_table_data = [['Fertilizer', 'Dosage (g/L)', 'Dosage (kg/1000L)', 'Main Nutrients', 'Constrained?']]
+            
+            constrained_names = {detail['fertilizer'] for detail in constraint_analysis.get('constraint_details', [])}
+            
+            for fert_name, dosage in dosages.items():
+                if dosage > 0.001:
+                    dosage_g_l = f"{dosage:.3f}"
+                    dosage_kg_1000l = f"{dosage:.3f}"
+                    
+                    # Get main nutrients from fertilizer data
+                    fert_data = fertilizer_data.get(fert_name, {})
+                    main_nutrients = []
+                    
+                    # Extract main nutrients (>5% content)
+                    cations = fert_data.get('cations', {})
+                    anions = fert_data.get('anions', {})
+                    
+                    for nutrient, content in {**cations, **anions}.items():
+                        if content > 5:
+                            main_nutrients.append(f"{nutrient}:{content:.1f}%")
+                    
+                    main_nutrients_str = ", ".join(main_nutrients[:3]) if main_nutrients else "Mixed"
+                    is_constrained = "Yes" if fert_name in constrained_names else "No"
+                    
+                    fertilizer_table_data.append([fert_name, dosage_g_l, dosage_kg_1000l, main_nutrients_str, is_constrained])
+            
+            fert_table = Table(fertilizer_table_data, colWidths=[2*inch, 0.8*inch, 1*inch, 1.5*inch, 0.7*inch])
+            fert_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(fert_table)
+            story.append(Spacer(1, 20))
+            
+            # Table 2: Nutrient achievement analysis
+            story.append(Paragraph("Nutrient Achievement vs Targets", subsection_style))
+            
+            nutrient_table_data = [['Nutrient', 'Target', 'Water', 'Fertilizer', 'Final', 'Deviation', 'Status']]
+            
+            for nutrient in sorted(target_concentrations.keys()):
+                target = target_concentrations[nutrient]
+                water_contrib = water_analysis.get(nutrient, 0)
+                final = achieved_concentrations.get(nutrient, 0)
+                fertilizer_contrib = final - water_contrib
+                
+                if target > 0:
+                    deviation = ((final - target) / target) * 100
+                    deviation_str = f"{deviation:+.1f}%"
+                    
+                    # Status based on deviation
+                    if abs(deviation) <= 5:
+                        status = "Excellent"
+                        status_color = colors.darkgreen
+                    elif abs(deviation) <= 15:
+                        status = "Good"
+                        status_color = colors.green
+                    elif abs(deviation) <= 25:
+                        status = "Fair"
+                        status_color = colors.orange
+                    else:
+                        status = "Poor"
+                        status_color = colors.red
+                    
+                    nutrient_table_data.append([
+                        nutrient,
+                        f"{target:.2f}",
+                        f"{water_contrib:.2f}",
+                        f"{fertilizer_contrib:.2f}",
+                        f"{final:.2f}",
+                        deviation_str,
+                        status
+                    ])
+            
+            nutrient_table = Table(nutrient_table_data, colWidths=[0.8*inch, 0.7*inch, 0.7*inch, 0.8*inch, 0.7*inch, 0.8*inch, 0.7*inch])
+            nutrient_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(nutrient_table)
+            story.append(Spacer(1, 20))
+            
+            # Table 3: Cost analysis
+            story.append(Paragraph("Detailed Cost Analysis", subsection_style))
+            
+            cost_table_data = [['Fertilizer', 'Amount (kg)', 'Unit Cost', 'Total Cost', '% of Total', 'Cost/g/L']]
+            
+            for fert_name, dosage in dosages.items():
+                if dosage > 0.001:
+                    details = cost_analysis.get('dosage_details', {}).get(fert_name, {})
+                    amount_kg = details.get('amount_kg', 0)
+                    total_cost = details.get('cost_total', 0)
+                    cost_percentage = details.get('percentage_of_total_cost', 0)
+                    cost_per_g_l = details.get('cost_per_g_l', 0)
+                    
+                    # Calculate unit cost per kg
+                    unit_cost = (total_cost / amount_kg) if amount_kg > 0 else 0
+                    
+                    cost_table_data.append([
+                        fert_name,
+                        f"{amount_kg:.3f}",
+                        f"₡{unit_cost:.2f}/kg",
+                        f"₡{total_cost:.3f}",
+                        f"{cost_percentage:.1f}%",
+                        f"₡{cost_per_g_l:.3f}"
+                    ])
+            
+            # Add total row
+            total_cost = cost_analysis.get('total_cost_concentrated', 0)
+            cost_table_data.append([
+                'TOTAL',
+                '',
+                '',
+                f"₡{total_cost:.3f}",
+                '100.0%',
+                ''
+            ])
+            
+            cost_table = Table(cost_table_data, colWidths=[2*inch, 0.8*inch, 1*inch, 0.8*inch, 0.6*inch, 0.8*inch])
+            cost_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgoldenrod),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BACKGROUND', (0, 1), (-2, -1), colors.lightyellow),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.darkgoldenrod),  # Total row
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.whitesmoke),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(cost_table)
+            story.append(PageBreak())
+            
+            # ================================
+            # 5. OPTIMIZATION RECOMMENDATIONS
+            # ================================
+            story.append(Paragraph("OPTIMIZATION RECOMMENDATIONS", section_style))
+            
+            # Constraint-specific recommendations
+            recommendations = verification_result.get('recommendations', [])
+            cost_suggestions = cost_analysis.get('optimization_suggestions', [])
+            
+            story.append(Paragraph("Solution Quality Recommendations", subsection_style))
+            
+            rec_text = ""
+            for i, rec in enumerate(recommendations, 1):
+                rec_text += f"{i}. {rec}<br/>"
+            
+            if rec_text:
+                story.append(Paragraph(rec_text, styles['Normal']))
+            else:
+                story.append(Paragraph("No specific recommendations - solution appears well optimized.", styles['Normal']))
+            
+            story.append(Spacer(1, 15))
+            
+            # Cost optimization recommendations
+            if cost_suggestions:
+                story.append(Paragraph("Cost Optimization Suggestions", subsection_style))
+                
+                cost_rec_text = ""
+                for i, suggestion in enumerate(cost_suggestions, 1):
+                    cost_rec_text += f"{i}. {suggestion.get('message', 'Unknown suggestion')}<br/>"
+                
+                story.append(Paragraph(cost_rec_text, styles['Normal']))
+                story.append(Spacer(1, 15))
+            
+            # Constraint adjustment recommendations
+            if len(constraint_analysis.get('violations', [])) > 0:
+                story.append(Paragraph("Constraint Adjustment Recommendations", subsection_style))
+                
+                constraint_rec_text = """
+                <b>Constraint violations detected:</b><br/>
+                • Consider relaxing overly restrictive constraints<br/>
+                • Use 'medium' or 'low' constraint priority for better nutrient targeting<br/>
+                • Evaluate if constraint violations significantly impact crop performance<br/>
+                • Consider alternative fertilizers that better fit constraint requirements<br/>
+                """
+                
+                story.append(Paragraph(constraint_rec_text, styles['Normal']))
+            
+            # ==================
+            # 6. FINAL SUMMARY
+            # ==================
+            story.append(Spacer(1, 30))
+            story.append(Paragraph("FINAL ASSESSMENT", section_style))
+            
+            # Overall solution assessment
+            quality_score = verification_result.get('quality_metrics', {}).get('overall_score', 0)
+            grade = verification_result.get('quality_metrics', {}).get('grade', 'N/A')
+            safety_level = verification_result.get('safety_assessment', {}).get('safety_level', 'unknown')
+            
+            final_assessment = f"""
+            <b>Overall Solution Quality:</b> {quality_score:.1f}/100 (Grade: {grade})<br/>
+            <b>Safety Assessment:</b> {safety_level.title()}<br/>
+            <b>Constraint Compliance:</b> {constraint_analysis.get('constraints_met', 0)}/{constraint_analysis.get('total_constraints', 0)} constraints satisfied<br/>
+            <b>Cost Efficiency:</b> {cost_analysis.get('cost_effectiveness', {}).get('relative_cost_rating', 'Unknown')}<br/>
+            <br/>
+            <b>Recommendation:</b> """
+            
+            if quality_score >= 80 and safety_level == 'safe' and len(constraint_analysis.get('violations', [])) == 0:
+                final_assessment += "Solution is well-optimized and ready for implementation."
+            elif quality_score >= 70 and len(constraint_analysis.get('violations', [])) <= 1:
+                final_assessment += "Solution is acceptable with minor optimizations possible."
+            else:
+                final_assessment += "Solution requires review and optimization before implementation."
+            
+            story.append(Paragraph(final_assessment, styles['Normal']))
+            
+            # Build PDF
+            doc.build(story)
+            
+            print(f"[PDF] ✅ Comprehensive constrained report generated successfully: {filename}")
+            return True
+            
+        except Exception as e:
+            print(f"[PDF] ❌ Failed to generate comprehensive constrained report: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+

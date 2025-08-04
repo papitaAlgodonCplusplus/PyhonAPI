@@ -7,12 +7,28 @@ This document provides sample API calls to test the Python API after running `ma
 - **Documentation**: `http://localhost:8000/docs`
 - **Interactive Testing**: Use FastAPI's built-in Swagger UI at `/docs`
 
+
+Example API calls for the new constrained endpoint:
+
+1. Basic constraint (limit Cloruro de calcio to max 500g per 1000L):
+http://localhost:8000/swagger-integrated-calculation-with-constraints?fertilizer_constraints={"Cloruro de calcio":{"max":0.5}}
+
+2. Multiple constraints with minimum requirements:
+http://localhost:8000/swagger-integrated-calculation-with-constraints?fertilizer_constraints={"Cloruro de calcio":{"max":0.5,"min":0.1},"Sulfato de potasio":{"max":2.0}}
+
+3. High priority constraints (strict enforcement):
+http://localhost:8000/swagger-integrated-calculation-with-constraints?fertilizer_constraints={"Cloruro de calcio":{"max":0.5}}&constraint_priority=high
+
+4. Allow poor targeting to respect constraints:
+http://localhost:8000/swagger-integrated-calculation-with-constraints?fertilizer_constraints={"Cloruro de calcio":{"max":0.3}}&ignore_target_deviations=true
+
+5. Complex multi-fertilizer constraints:
+http://localhost:8000/swagger-integrated-calculation-with-constraints?fertilizer_constraints={"Cloruro de calcio":{"max":0.5,"min":0.1},"Sulfato de potasio":{"max":1.5},"Nitrato de potasio":{"max":3.0,"min":0.5}}&constraint_priority=absolute
+
 ## Quick Test Endpoints
 
 ## Favorite
 
-http://localhost:8000/swagger-integrated-calculation?catalog_id=1&phase_id=1&water_id=1&volume_liters=1000&use_ml=true
-http://localhost:8000/swagger-integrated-calculation?user_id=1&catalog_id=1&phase_id=1&water_id=1&volume_liters=1000&use_ml=true
 http://localhost:8000/swagger-integrated-calculation?user_id=1&catalog_id=1&phase_id=1&water_id=1&volume_liters=1000&use_ml=true&apply_safety_caps=true&strict_caps=true
 
 ### 1. Health Check

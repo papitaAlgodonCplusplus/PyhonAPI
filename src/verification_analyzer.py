@@ -6,6 +6,7 @@ Solution verification and cost analysis with professional algorithms
 
 from typing import Dict, List, Any, Optional
 import math
+import datetime
 
 class SolutionVerifier:
     """Professional solution verification module"""
@@ -361,6 +362,278 @@ class SolutionVerifier:
             return {ion: round((final_meq.get(ion, 0) / total) * 100, 1) for ion in ion_list}
         else:
             return {ion: 0.0 for ion in ion_list}
+     
+    def create_detailed_verification(self, 
+                                dosages: Dict[str, float],
+                                achieved_concentrations: Dict[str, float],
+                                target_concentrations: Dict[str, float],
+                                water_analysis: Dict[str, float],
+                                volume_liters: float) -> Dict[str, Any]:
+        """
+        Create a comprehensive detailed verification of the fertilizer solution
+        
+        Args:
+            dosages: Fertilizer dosages in g/L
+            achieved_concentrations: Final nutrient concentrations achieved
+            target_concentrations: Desired nutrient concentrations
+            water_analysis: Initial water nutrient content
+            volume_liters: Total solution volume
+        
+        Returns:
+            Detailed verification results dictionary
+        """
+        print(f"\n[VERIFY] Creating detailed verification analysis...")
+        
+        # 1. Basic nutrient concentration verification
+        nutrient_analysis = self.verify_concentrations(target_concentrations, achieved_concentrations)
+        
+        # 2. Calculate deviations and statistics
+        total_deviation = 0
+        nutrient_count = 0
+        excellent_count = 0
+        good_count = 0
+        poor_count = 0
+        
+        deviation_details = {}
+        
+        for nutrient in target_concentrations.keys():
+            target = target_concentrations[nutrient]
+            achieved = achieved_concentrations.get(nutrient, 0)
+            
+            if target > 0:
+                deviation_percent = abs((achieved - target) / target * 100)
+                total_deviation += deviation_percent
+                nutrient_count += 1
+                
+                deviation_details[nutrient] = {
+                    'target': target,
+                    'achieved': achieved,
+                    'deviation_percent': deviation_percent,
+                    'absolute_difference': achieved - target
+                }
+                
+                # Count status categories
+                if deviation_percent <= 5:
+                    excellent_count += 1
+                elif deviation_percent <= 15:
+                    good_count += 1
+                else:
+                    poor_count += 1
+        
+        average_deviation = total_deviation / nutrient_count if nutrient_count > 0 else 0
+        
+        # 3. Dosage analysis
+        active_fertilizers = [name for name, dosage in dosages.items() if dosage > 0.001]
+        total_dosage = sum(dosages.values())
+        max_individual_dosage = max(dosages.values()) if dosages else 0
+        
+        dosage_analysis = {
+            'total_dosage_g_l': total_dosage,
+            'max_individual_dosage_g_l': max_individual_dosage,
+            'active_fertilizers_count': len(active_fertilizers),
+            'active_fertilizers': active_fertilizers,
+            'dosage_distribution': {name: dosage for name, dosage in dosages.items() if dosage > 0.001}
+        }
+        
+        # 4. Safety assessment
+        safety_warnings = []
+        
+        if total_dosage > 15.0:
+            safety_warnings.append({
+                'type': 'high_total_dosage',
+                'message': f'Total dosage ({total_dosage:.2f} g/L) exceeds recommended maximum (15 g/L)',
+                'severity': 'high'
+            })
+        
+        if max_individual_dosage > 5.0:
+            safety_warnings.append({
+                'type': 'high_individual_dosage',
+                'message': f'Individual fertilizer dosage ({max_individual_dosage:.2f} g/L) exceeds recommended maximum (5 g/L)',
+                'severity': 'high'
+            })
+        
+        # Check for dangerous nutrient levels
+        for nutrient, achieved in achieved_concentrations.items():
+            if nutrient in self.nutrient_ranges:
+                ranges = self.nutrient_ranges[nutrient]
+                if achieved > ranges['max'] * 1.5:  # 50% above maximum
+                    safety_warnings.append({
+                        'type': 'dangerous_nutrient_level',
+                        'message': f'{nutrient} level ({achieved:.2f} mg/L) is dangerously high (max safe: {ranges["max"]} mg/L)',
+                        'severity': 'critical',
+                        'nutrient': nutrient
+                    })
+        
+        # 5. Calculate ionic balance (simplified)
+        try:
+            # Convert to meq/L for ionic balance
+            final_meq = self._convert_to_meq_l(achieved_concentrations)
+            ionic_balance = self.verify_ionic_balance(final_meq)
+        except:
+            ionic_balance = {'balance_error_percent': 0, 'status': 'unknown', 'cation_sum': 0, 'anion_sum': 0}
+        
+        # 6. Cost efficiency analysis (if possible)
+        cost_efficiency = {
+            'cost_per_nutrient_mg': {},
+            'most_expensive_nutrients': [],
+            'cost_effective_nutrients': []
+        }
+        
+        # Calculate cost per mg of each nutrient delivered
+        for nutrient in target_concentrations.keys():
+            achieved = achieved_concentrations.get(nutrient, 0)
+            water_contribution = water_analysis.get(nutrient, 0)
+            fertilizer_contribution = achieved - water_contribution
+            
+            if fertilizer_contribution > 0:
+                # This would need cost data to complete - placeholder for now
+                cost_efficiency['cost_per_nutrient_mg'][nutrient] = {
+                    'fertilizer_contribution_mg_l': fertilizer_contribution,
+                    'efficiency_score': min(100, (fertilizer_contribution / target_concentrations[nutrient]) * 100)
+                }
+        
+        # 7. Solution quality score
+        quality_factors = {
+            'targeting_accuracy': max(0, 100 - average_deviation),  # Higher is better
+            'dosage_efficiency': max(0, 100 - (total_dosage / 15.0 * 100)),  # Lower dosage is better
+            'safety_score': max(0, 100 - len(safety_warnings) * 20),  # Fewer warnings is better
+            'ionic_balance_score': max(0, 100 - abs(ionic_balance.get('balance_error_percent', 0))),
+            'fertilizer_utilization': min(100, len(active_fertilizers) / 8 * 100)  # Optimal around 6-8 fertilizers
+        }
+        
+        overall_quality_score = sum(quality_factors.values()) / len(quality_factors)
+        
+        # 8. Recommendations based on analysis
+        recommendations = []
+        
+        if average_deviation > 20:
+            recommendations.append("High nutrient deviations detected. Consider adjusting fertilizer selection or dosages.")
+        
+        if total_dosage > 12:
+            recommendations.append("Total dosage is high. Consider using more concentrated fertilizers or reducing targets.")
+        
+        if len(active_fertilizers) > 10:
+            recommendations.append("Many fertilizers required. Consider simplifying the formulation.")
+        
+        if excellent_count / nutrient_count < 0.5 if nutrient_count > 0 else False:
+            recommendations.append("Less than 50% of nutrients achieved excellent targeting. Review formulation strategy.")
+        
+        if len(safety_warnings) > 0:
+            recommendations.append("Safety concerns detected. Review dosages and nutrient levels before use.")
+        
+        if not recommendations:
+            recommendations.append("Solution appears well-optimized with good nutrient targeting and safe dosage levels.")
+        
+        # 9. Detailed results compilation
+        detailed_verification = {
+            # Core verification results
+            'nutrient_analysis': nutrient_analysis,
+            'average_deviation_percent': round(average_deviation, 2),
+            'deviation_details': deviation_details,
+            
+            # Performance statistics
+            'performance_summary': {
+                'excellent_nutrients': excellent_count,
+                'good_nutrients': good_count,
+                'poor_nutrients': poor_count,
+                'total_nutrients': nutrient_count,
+                'success_rate_percent': round((excellent_count + good_count) / nutrient_count * 100, 1) if nutrient_count > 0 else 0
+            },
+            
+            # Dosage analysis
+            'dosage_analysis': dosage_analysis,
+            
+            # Safety assessment
+            'safety_assessment': {
+                'warnings': safety_warnings,
+                'safety_level': 'safe' if len(safety_warnings) == 0 else ('caution' if len([w for w in safety_warnings if w['severity'] == 'critical']) == 0 else 'unsafe'),
+                'total_warnings': len(safety_warnings)
+            },
+            
+            # Ionic balance
+            'ionic_balance': ionic_balance,
+            
+            # Quality metrics
+            'quality_metrics': {
+                'overall_score': round(overall_quality_score, 1),
+                'individual_scores': quality_factors,
+                'grade': self._get_quality_grade(overall_quality_score)
+            },
+            
+            # Cost efficiency (placeholder)
+            'cost_efficiency': cost_efficiency,
+            
+            # Recommendations
+            'recommendations': recommendations,
+            
+            # Technical details
+            'technical_details': {
+                'total_volume_liters': volume_liters,
+                'calculation_timestamp': datetime.datetime.now().isoformat(),
+                'verification_method': 'detailed_comprehensive'
+            }
+        }
+        
+        # Log summary
+        print(f"[VERIFY] ✅ Detailed verification completed:")
+        print(f"  • Average deviation: {average_deviation:.2f}%")
+        print(f"  • Success rate: {detailed_verification['performance_summary']['success_rate_percent']:.1f}%")
+        print(f"  • Quality score: {overall_quality_score:.1f}/100")
+        print(f"  • Safety level: {detailed_verification['safety_assessment']['safety_level']}")
+        print(f"  • Active fertilizers: {len(active_fertilizers)}")
+        print(f"  • Total dosage: {total_dosage:.3f} g/L")
+        
+        return detailed_verification
+
+    def _convert_to_meq_l(self, concentrations_mg_l: Dict[str, float]) -> Dict[str, float]:
+        """Convert mg/L concentrations to meq/L for ionic balance calculations"""
+        
+        # Atomic weights and valences
+        conversion_factors = {
+            'Ca': 20.04,   # Ca²⁺ = 40.08/2
+            'K': 39.10,    # K⁺ = 39.10/1  
+            'Mg': 12.15,   # Mg²⁺ = 24.31/2
+            'Na': 22.99,   # Na⁺ = 22.99/1
+            'NH4': 18.04,  # NH₄⁺ = 18.04/1
+            'N': 14.01,    # NO₃⁻ = 14.01/1 (as N)
+            'S': 16.03,    # SO₄²⁻ = 32.06/2 (as S)
+            'P': 30.97,    # H₂PO₄⁻ = 30.97/1 (as P)
+            'Cl': 35.45,   # Cl⁻ = 35.45/1
+            'HCO3': 61.02  # HCO₃⁻ = 61.02/1
+        }
+        
+        meq_l = {}
+        for element, mg_l in concentrations_mg_l.items():
+            if element in conversion_factors and mg_l > 0:
+                meq_l[element] = mg_l / conversion_factors[element]
+            else:
+                meq_l[element] = 0
+        
+        return meq_l
+
+    def _get_quality_grade(self, score: float) -> str:
+        """Convert quality score to letter grade"""
+        if score >= 90:
+            return 'A+'
+        elif score >= 85:
+            return 'A'
+        elif score >= 80:
+            return 'A-'
+        elif score >= 75:
+            return 'B+'
+        elif score >= 70:
+            return 'B'
+        elif score >= 65:
+            return 'B-'
+        elif score >= 60:
+            return 'C+'
+        elif score >= 55:
+            return 'C'
+        elif score >= 50:
+            return 'C-'
+        else:
+            return 'F'
+
 
 class CostAnalyzer:
     """Professional cost analysis module with market-based pricing"""
@@ -487,6 +760,160 @@ class CostAnalyzer:
             'Costa Rica': 1.0,         # Agregar específico para Costa Rica
             'Default': 1.0
         }
+
+    def calculate_cost_analysis(self, 
+                           dosages: Dict[str, float], 
+                           fertilizer_data: Dict[str, Any], 
+                           volume_liters: float,
+                           region: str = 'Default') -> Dict[str, Any]:
+        """
+        Calculate comprehensive cost analysis from dosages and fertilizer data
+        
+        Args:
+            dosages: Fertilizer dosages in g/L
+            fertilizer_data: Dictionary containing fertilizer information (from API)  
+            volume_liters: Total solution volume in liters
+            region: Region for pricing adjustments
+        
+        Returns:
+            Comprehensive cost analysis dictionary
+        """
+        print(f"[COST] Calculating cost analysis for {len(dosages)} fertilizers...")
+        
+        # Convert dosages (g/L) to amounts (kg) for the volume
+        fertilizer_amounts_kg = {}
+        for fert_name, dosage_g_l in dosages.items():
+            if dosage_g_l > 0.001:  # Only include meaningful dosages
+                amount_kg = (dosage_g_l * volume_liters) / 1000  # Convert g/L to kg for total volume
+                fertilizer_amounts_kg[fert_name] = amount_kg
+        
+        print(f"[COST] Active fertilizers: {len(fertilizer_amounts_kg)}")
+        for name, amount in fertilizer_amounts_kg.items():
+            print(f"  • {name}: {amount:.3f} kg")
+        
+        # Use the existing cost calculation method
+        cost_result = self.calculate_solution_cost_with_api_data(
+            fertilizer_amounts=fertilizer_amounts_kg,
+            concentrated_volume=volume_liters,
+            diluted_volume=volume_liters,  # Assuming no dilution for now
+            region=region
+        )
+        
+        # Enhance the result with additional analysis for the constrained endpoint
+        enhanced_result = cost_result.copy()
+        
+        # Add dosage-specific information
+        enhanced_result['dosage_details'] = {}
+        total_dosage = sum(dosages.values())
+        
+        for fert_name, dosage_g_l in dosages.items():
+            if dosage_g_l > 0.001:
+                fert_data = fertilizer_data.get(fert_name, {})
+                
+                # Calculate cost per g/L for this fertilizer
+                amount_kg = fertilizer_amounts_kg.get(fert_name, 0)
+                fert_cost = cost_result['cost_per_fertilizer'].get(fert_name, 0)
+                cost_per_g_l = (fert_cost / dosage_g_l) if dosage_g_l > 0 else 0
+                
+                enhanced_result['dosage_details'][fert_name] = {
+                    'dosage_g_l': dosage_g_l,
+                    'amount_kg': amount_kg,
+                    'cost_total': fert_cost,
+                    'cost_per_g_l': cost_per_g_l,
+                    'percentage_of_total_dosage': (dosage_g_l / total_dosage * 100) if total_dosage > 0 else 0,
+                    'percentage_of_total_cost': cost_result['cost_percentages'].get(fert_name, 0),
+                    'api_price_available': fert_data.get('price') is not None,
+                    'price_match_type': fert_data.get('price_match_type', 'unknown')
+                }
+        
+        # Add summary statistics
+        enhanced_result['summary_statistics'] = {
+            'total_dosage_g_l': total_dosage,
+            'total_volume_liters': volume_liters,
+            'active_fertilizers': len(fertilizer_amounts_kg),
+            'cost_per_g_total_dosage': (cost_result['total_cost_concentrated'] / total_dosage) if total_dosage > 0 else 0,
+            'average_dosage_per_fertilizer': total_dosage / len(fertilizer_amounts_kg) if len(fertilizer_amounts_kg) > 0 else 0,
+            'cost_efficiency_score': min(100, (1 / (cost_result['cost_per_liter_diluted'] * 1000)) * 10) if cost_result['cost_per_liter_diluted'] > 0 else 0
+        }
+        
+        # Add cost optimization suggestions
+        enhanced_result['optimization_suggestions'] = []
+        
+        # Find most expensive fertilizers by cost percentage
+        cost_percentages = cost_result.get('cost_percentages', {})
+        expensive_fertilizers = [(name, pct) for name, pct in cost_percentages.items() if pct > 25]
+        expensive_fertilizers.sort(key=lambda x: x[1], reverse=True)
+        
+        if expensive_fertilizers:
+            top_expensive = expensive_fertilizers[0]
+            enhanced_result['optimization_suggestions'].append({
+                'type': 'expensive_fertilizer',
+                'message': f'{top_expensive[0]} accounts for {top_expensive[1]:.1f}% of total cost. Consider alternatives if available.',
+                'fertilizer': top_expensive[0],
+                'cost_percentage': top_expensive[1]
+            })
+        
+        # Check for high-dosage, low-cost-efficiency fertilizers
+        for fert_name, details in enhanced_result['dosage_details'].items():
+            if details['dosage_g_l'] > 2.0 and details['cost_per_g_l'] > enhanced_result['summary_statistics']['cost_per_g_total_dosage']:
+                enhanced_result['optimization_suggestions'].append({
+                    'type': 'inefficient_dosage',
+                    'message': f'{fert_name} requires high dosage ({details["dosage_g_l"]:.2f} g/L) with above-average cost efficiency.',
+                    'fertilizer': fert_name,
+                    'dosage': details['dosage_g_l']
+                })
+        
+        # Check pricing data coverage
+        api_pricing_count = sum(1 for details in enhanced_result['dosage_details'].values() if details['api_price_available'])
+        total_fertilizers = len(enhanced_result['dosage_details'])
+        pricing_coverage = (api_pricing_count / total_fertilizers * 100) if total_fertilizers > 0 else 0
+        
+        if pricing_coverage < 70:
+            enhanced_result['optimization_suggestions'].append({
+                'type': 'limited_pricing_data',
+                'message': f'Only {pricing_coverage:.1f}% of fertilizers have API pricing data. Cost analysis may be incomplete.',
+                'coverage_percentage': pricing_coverage
+            })
+        
+        # Add region-specific information
+        enhanced_result['regional_info'] = {
+            'region': region,
+            'currency': 'CRC',  # Costa Rican Colones
+            'pricing_date': cost_result.get('pricing_date', 'unknown'),
+            'regional_factor_applied': cost_result.get('regional_factor', 1.0)
+        }
+        
+        # Calculate cost-effectiveness metrics
+        enhanced_result['cost_effectiveness'] = {
+            'cost_per_liter_final_solution': cost_result['cost_per_liter_diluted'],
+            'cost_per_cubic_meter': cost_result['cost_per_liter_diluted'] * 1000,
+            'cost_per_gram_nutrients_delivered': 0,  # Would need nutrient delivery calculation
+            'relative_cost_rating': self._get_cost_rating(cost_result['cost_per_liter_diluted'])
+        }
+        
+        print(f"[COST] ✅ Cost analysis completed:")
+        print(f"  • Total cost: ₡{cost_result['total_cost_concentrated']:.3f}")
+        print(f"  • Cost per liter: ₡{cost_result['cost_per_liter_diluted']:.4f}")
+        print(f"  • API pricing coverage: {pricing_coverage:.1f}%")
+        print(f"  • Optimization suggestions: {len(enhanced_result['optimization_suggestions'])}")
+        
+        return enhanced_result
+
+    def _get_cost_rating(self, cost_per_liter: float) -> str:
+        """
+        Get relative cost rating based on cost per liter
+        """
+        if cost_per_liter < 0.001:
+            return 'Very Low'
+        elif cost_per_liter < 0.005:
+            return 'Low'
+        elif cost_per_liter < 0.015:
+            return 'Moderate'
+        elif cost_per_liter < 0.030:
+            return 'High'
+        else:
+            return 'Very High'
+
 
     def calculate_solution_cost_with_api_data(self, fertilizer_amounts: Dict[str, float], 
                               concentrated_volume: float, 
@@ -634,3 +1061,4 @@ class CostAnalyzer:
         default_cost = 2.00
         print(f"    [WARNING]  Unknown fertilizer {fertilizer_name}, using default cost: ₡{default_cost:.2f}/kg")
         return default_cost
+   

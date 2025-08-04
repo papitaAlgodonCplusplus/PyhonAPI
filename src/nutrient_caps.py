@@ -236,6 +236,8 @@ class NutrientCaps:
             'warnings': warnings + ratio_warnings,
             'total_adjustments': len(adjustments_made),
             'strict_mode': strict_mode,
+            'adjusted_targets': capped_concentrations,
+            'adjustments': adjustments_made,
             'summary': self._generate_adjustment_summary(adjustments_made, warnings)
         }
         
@@ -359,45 +361,3 @@ def apply_nutrient_caps_to_targets(target_concentrations: Dict[str, float],
     """
     caps_manager = NutrientCaps()
     return caps_manager.apply_nutrient_caps(target_concentrations, strict_mode)
-    """Test the caps system with the problematic values from the user's example"""
-    
-    print("[TEST] TESTING NUTRIENT CAPS SYSTEM\n")
-    
-    # Test case: Problematic values from user's example
-    problematic_targets = {
-        'Ca': 180.4,  # [SUCCESS] Good
-        'K': 391.0,   # [ERROR] Too high (normal: 200-300)
-        'Mg': 24.3,   # [SUCCESS] Good
-        'N': 750.0,   # [ERROR] Way too high (normal: 150-300)
-        'S': 240.2,   # [ERROR] Too high (normal: 50-150)  
-        'P': 194.0,   # [ERROR] Too high (normal: 30-70)
-        'HCO3': 30.5, # [SUCCESS] Good
-        'Fe': 2.230,  # [SUCCESS] Good
-        'Mn': 0.270,  # [SUCCESS] Good
-        'Zn': 0.330,  # [SUCCESS] Good
-        'Cu': 0.060,  # [SUCCESS] Good
-        'B': 0.320,   # [SUCCESS] Good
-        'Mo': 0.100   # [SUCCESS] Good
-    }
-    
-    caps_manager = NutrientCaps()
-    
-    print("ORIGINAL TARGETS:")
-    for nutrient, value in problematic_targets.items():
-        print(f"  {nutrient}: {value} mg/L")
-    
-    # Apply caps
-    result = caps_manager.apply_nutrient_caps(problematic_targets, strict_mode=True)
-    
-    print("\nCAPPED TARGETS:")
-    for nutrient, value in result['capped_concentrations'].items():
-        original = problematic_targets[nutrient]
-        status = "ADJUSTED" if value != original else "UNCHANGED"
-        print(f"  {nutrient}: {value} mg/L ({status})")
-    
-    print(f"\nSUMMARY:")
-    print(f"  Total adjustments: {result['total_adjustments']}")
-    print(f"  Safety score: {result['summary']['safety_score']:.1f}/100")
-    print(f"  High priority warnings: {result['summary']['high_priority_warnings']}")
-    
-    return result

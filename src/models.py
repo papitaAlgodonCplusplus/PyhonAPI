@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 import numpy as np
+from dataclasses import dataclass
 
 class LinearProgrammingConfig(BaseModel):
     """Configuration for linear programming optimization"""
@@ -199,3 +200,116 @@ class MLModelConfig(BaseModel):
     max_depth: Optional[int] = None
     learning_rate: float = 0.1
     random_state: int = 42
+
+
+@dataclass
+class LinearProgrammingResultConstrained:
+    """Result from linear programming optimization with constraint support"""
+    success: bool
+    dosages: Dict[str, float]
+    total_dosage: float
+    solver_used: str
+    solver_time_seconds: float
+    constraints_violated: List[Dict[str, Any]]
+    dosages_g_per_L: Dict[str, float]
+    achieved_concentrations: Dict[str, float]
+    deviations_percent: Dict[str, float]
+    objective_value: float
+    ionic_balance_error: float
+    active_fertilizers: int
+    optimization_status: str
+    error_message: Optional[str] = None
+
+class FertilizerConstraint:
+    """Class to handle fertilizer constraints"""
+    
+    def __init__(self, fertilizer_name: str, min_dosage: float = 0.0, max_dosage: float = None):
+        self.fertilizer_name = fertilizer_name
+        self.min_dosage = min_dosage
+        self.max_dosage = max_dosage if max_dosage is not None else float('inf')
+        
+    def is_valid_dosage(self, dosage: float) -> bool:
+        """Check if dosage is within constraints"""
+        return self.min_dosage <= dosage <= self.max_dosage
+    
+    def get_adjusted_dosage(self, proposed_dosage: float) -> float:
+        """Adjust dosage to fit within constraints"""
+        return max(self.min_dosage, min(proposed_dosage, self.max_dosage))
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation"""
+        return {
+            'fertilizer_name': self.fertilizer_name,
+            'min_dosage': self.min_dosage,
+            'max_dosage': self.max_dosage if self.max_dosage != float('inf') else None
+        }
+
+class ConstraintManager:
+    """Manager for handling multiple fertilizer constraints"""
+    
+    def __init__(self):
+        self.constraints: Dict[str, FertilizerConstraint] = {}
+    
+    def add_constraint(self, fertilizer_name: str, min_dosage: float = 0.0, 
+                      max_dosage: float = None) -> None:
+        """Add a constraint for a fertilizer"""
+        self.constraints[fertilizer_name] = FertilizerConstraint(
+            fertilizer_name, min_dosage, max_dosage
+        )
+    
+    def add_constraints_from_dict(self, constraints_dict: Dict[str, Dict[str, float]]) -> None:
+        """Add constraints from a dictionary format"""
+        for fert_name, constraint_data in constraints_dict.items():
+            min_val = constraint_data.min_val = constraint_data.get('min', 0.0)
+            max_val = constraint_data.get('max', None)
+            self.add_constraint(fert_name, min_val, max_val)
+    
+    def get_constraint(self, fertilizer_name: str) -> Optional[FertilizerConstraint]:
+        """Get constraint for a specific fertilizer"""
+        return self.constraints.get(fertilizer_name)
+    
+    def has_constraint(self, fertilizer_name: str) -> bool:
+        """Check if fertilizer has constraints"""
+        return fertilizer_name in self.constraints
+    
+    def apply_constraints_to_dosages(self, dosages: Dict[str, float]) -> Dict[str, float]:
+        """Apply all constraints to a set of dosages"""
+        constrained_dosages = dosages.copy()
+        
+        for fert_name, constraint in self.constraints.items():
+            if fert_name in constrained_dosages:
+                original = constrained_dosages[fert_name]
+                adjusted = constraint.get_adjusted_dosage(original)
+                constrained_dosages[fert_name] = adjusted
+                
+                if abs(original - adjusted) > 1e-6:
+                    print(f"[CONSTRAINT] {fert_name}: {original:.3f} → {adjusted:.3f} g/L")
+        
+        return constrained_dosages
+    
+    def validate_dosages(self, dosages: Dict[str, float]) -> List[Dict[str, Any]]:
+        """Validate dosages against constraints and return violations"""
+        violations = []
+        
+        for fert_name, constraint in self.constraints.items():
+            dosage = dosages.get(fert_name, 0.0)
+            
+            if not constraint.is_valid_dosage(dosage):
+                violation = {
+                    'fertilizer': fert_name,
+                    'dosage': dosage,
+                    'min_required': constraint.min_dosage,
+                    'max_allowed': constraint.max_dosage,
+                    'violation_type': 'below_minimum' if dosage < constraint.min_dosage else 'above_maximum',
+                    'violation_amount': abs(dosage - constraint.get_adjusted_dosage(dosage))
+                }
+                violations.append(violation)
+        
+        return violations
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary of all constraints"""
+        return {
+            'total_constraints': len(self.constraints),
+            'constraint_details': [constraint.to_dict() for constraint in self.constraints.values()]
+        }
